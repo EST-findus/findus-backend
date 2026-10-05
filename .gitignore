@@ -88,9 +88,7 @@ $RECYCLE.BIN/
 .env.*
 !.env.example
 !.env.*.example
-/src/main/resources/application-local.properties
-/src/main/resources/application-local.yml
-/src/main/resources/application-local.yaml
+# application-local.properties is shared and contains no credentials.
 /src/main/resources/application-secret.properties
 /src/main/resources/application-secret.yml
 /src/main/resources/application-secret.yaml

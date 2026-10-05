@@ -1,0 +1,5 @@
+# Shared local profile: actual credentials belong in the ignored root .env.
+# The .env file still uses unquoted KEY=value syntax, not YAML.
+spring:
+  config:
+    import: "optional:file:./.env[.properties]"
