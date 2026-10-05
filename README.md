@@ -257,3 +257,4 @@ macOS·Java 17에서 빌드·기본 테스트·서버 실행을 확인했습니�
 - [Spring Initializr](https://start.spring.io/)
 - [Spring Boot 시스템 요구사항](https://docs.spring.io/spring-boot/system-requirements.html)
 - [기존 회원·인증 템플릿](https://github.com/pleasebelieveme/security-jwt-template)
+
