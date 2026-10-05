@@ -1,0 +1,129 @@
+# Based on the user-provided gitignore.io templates:
+# macOS, Windows, Java, IntelliJ IDEA and Visual Studio Code.
+# Adapted for FindUs: Java / Gradle / Spring Boot / Docker Compose.
+# IDE settings are local; build.gradle and the Gradle Wrapper are shared.
+
+### Gradle ###
+.gradle/
+.kotlin/
+build/
+
+### Java build output and crash reports ###
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+# Required to build without a separately installed Gradle.
+!/gradle/wrapper/gradle-wrapper.jar
+hs_err_pid*
+replay_pid*
+.mtj.tmp/
+*.ctxt
+
+### IntelliJ IDEA / JetBrains ###
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+.idea_modules/
+atlassian-ide-plugin.xml
+
+### Visual Studio Code ###
+.vscode/
+*.code-workspace
+.history/
+.localhistory/
+*.vsix
+
+### Other Java IDE generated settings ###
+.apt_generated/
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+bin/
+
+### macOS ###
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100/
+.fseventsd/
+.Spotlight-V100/
+.TemporaryItems/
+.Trashes/
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder/
+Temporary Items/
+.apdisk
+*.icloud
+
+### Windows ###
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.stackdump
+*.lnk
+
+### Editor temporary files and backups ###
+*~
+*.swp
+*.swo
+*.bak
+*.orig
+
+### Local environment and private configuration ###
+.env
+.env.*
+!.env.example
+!.env.*.example
+/src/main/resources/application-local.properties
+/src/main/resources/application-local.yml
+/src/main/resources/application-local.yaml
+/src/main/resources/application-secret.properties
+/src/main/resources/application-secret.yml
+/src/main/resources/application-secret.yaml
+/compose.override.yml
+/compose.override.yaml
+/docker-compose.override.yml
+/docker-compose.override.yaml
+/secrets/
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+### Docker bind-mounted runtime data ###
+# Use docker-data/<service>/ for future PostgreSQL, Redis and monitoring data.
+# Named volumes and downloaded Docker images live outside this repository.
+/docker-data/
+# Also cover service-specific local data paths.
+/docker/postgres/data/
+/docker/postgresql/data/
+/docker/redis/data/
+/docker/prometheus/data/
+/docker/grafana/data/
+# Keep Dockerfile, Compose files, shared config and migration SQL in Git.
+
+### Logs, local database backups and reports ###
+*.log
+/logs/
+/backups/
+*.dump
+*.sql.gz
+dump.rdb
+appendonly.aof
+appendonlydir/
+/coverage/
