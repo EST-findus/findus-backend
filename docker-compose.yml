@@ -1,0 +1,44 @@
+name: findus-local
+
+services:
+  postgres:
+    image: postgres:17.11-bookworm
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-findus}
+      POSTGRES_USER: ${POSTGRES_USER:-findus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?.env에 POSTGRES_PASSWORD를 입력하세요}
+      PGPORT: ${POSTGRES_PORT:-15432}
+    # 내 컴퓨터와 컨테이너에서 같은 포트를 사용합니다.
+    command: ["postgres", "-p", "${POSTGRES_PORT:-15432}"]
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-15432}:${POSTGRES_PORT:-15432}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -p \"$$PGPORT\" -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7.4.11-alpine
+    environment:
+      REDIS_PORT: ${REDIS_PORT:-16379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?.env에 REDIS_PASSWORD를 입력하세요}
+    # 비밀번호는 컨테이너 안에서 환경변수로 읽습니다. 공유 파일에 실제 값을 넣지 않습니다.
+    command: ["sh", "-c", 'exec redis-server --port "$$REDIS_PORT" --appendonly yes --appendfsync everysec --requirepass "$$REDIS_PASSWORD"']
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-16379}:${REDIS_PORT:-16379}"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", 'REDISCLI_AUTH="$$REDIS_PASSWORD" redis-cli -p "$$REDIS_PORT" ping | grep -qx PONG']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+volumes:
+  postgres_data:
+  redis_data:

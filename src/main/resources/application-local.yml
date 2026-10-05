@@ -1,5 +1,8 @@
-# Shared local profile: actual credentials belong in the ignored root .env.
-# The .env file still uses unquoted KEY=value syntax, not YAML.
+# 백엔드 폴더 또는 상위 FindUs 폴더에서 실행할 때 로컬 .env를 읽습니다.
+# 두 파일이 모두 있으면 현재 작업 폴더의 .env가 우선합니다.
+# 실제 비밀번호는 Git에서 제외된 .env에만 작성하세요.
 spring:
   config:
-    import: "optional:file:./.env[.properties]"
+    import:
+      - "optional:file:./findus-backend/.env[.properties]"
+      - "optional:file:./.env[.properties]"
