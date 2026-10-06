@@ -99,11 +99,11 @@ class FindUsApplicationTests {
 	@Test
 	@DisplayName("앱 스키마를 만들고 같은 SQL을 중복 적용하지 않는다")
 	void Flyway가_스키마를_만들고_중복_적용하지_않는다() {
-		// 앱 시작 때 Flyway가 findus 스키마와 버전 1 이력을 만들었는지 확인합니다.
+		// 앱 시작 때 Flyway가 findus 스키마와 회원 테이블까지 만들었는지 확인합니다.
 		assertThat(jdbcTemplate.queryForObject(
 				"SELECT count(*) FROM information_schema.schemata WHERE schema_name = 'findus'", Integer.class))
 				.isEqualTo(1);
-		assertThat(flyway.info().current().getVersion().toString()).isEqualTo("1");
+		assertThat(flyway.info().current().getVersion().toString()).isEqualTo("2");
 		// 다시 실행해도 이미 적용한 마이그레이션 수는 0이어야 합니다.
 		flyway.validate();
 		assertThat(flyway.migrate().migrationsExecuted).isZero();
@@ -123,12 +123,12 @@ class FindUsApplicationTests {
 						"--spring.data.redis.host=" + REDIS.getHost(),
 						"--spring.data.redis.port=" + REDIS.getMappedPort(6379),
 						"--spring.data.redis.password=" + REDIS_PASSWORD)) {
-			// 버전 1을 다시 적용하지 않고 기존 public 이력 한 건을 사용하는지 확인합니다.
+			// V1·V2를 다시 적용하지 않고 기존 public 이력 두 건을 사용하는지 확인합니다.
 			assertThat(restarted.getBean(Flyway.class).info().current().getVersion().toString())
-					.isEqualTo("1");
+					.isEqualTo("2");
 			assertThat(restarted.getBean(JdbcTemplate.class).queryForObject(
 					"SELECT count(*) FROM public.flyway_schema_history WHERE success", Integer.class))
-					.isEqualTo(1);
+					.isEqualTo(2);
 		}
 	}
 

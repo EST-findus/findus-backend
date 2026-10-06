@@ -12,10 +12,10 @@ FindUs는 AI로 실종아동의 현재 예상 모습을 만들고, 실종 정보
 | 빌드 도구 | Gradle 9.7.1 · Groovy · Wrapper 사용 |
 | 개발 도구 | 백엔드: IntelliJ · 팀원: VS Code |
 | 데이터 저장소 | PostgreSQL 17.11 · Redis 7.4.11 |
-| 현재 단계 | 3단계 Docker·DB·Redis 연결 구성 |
-| 다음 작업 | 4단계 UUID 회원 모델·DB 설계 |
+| 현재 단계 | 4단계 UUID 회원 모델·DB 설계 |
+| 다음 작업 | 5단계 회원가입 구현 |
 
-현재 회원·인증 API는 없습니다. **백엔드는 IntelliJ/터미널에서, PostgreSQL·Redis는 Docker에서 실행**합니다. Flyway가 DB 구조를 변경하고 JPA는 일치 여부만 검증합니다.
+회원 저장 모델과 Repository를 구성했으며, 회원·인증 API는 아직 없습니다. **백엔드는 IntelliJ/터미널에서, PostgreSQL·Redis는 Docker에서 실행**합니다. Flyway가 DB 구조를 변경하고 JPA는 일치 여부만 검증합니다.
 
 ## 실행 전 준비 — 공통
 
@@ -109,7 +109,7 @@ docker compose up -d --wait
 | Redis | `localhost:16379` | `16379` |
 | Spring Boot | `http://localhost:18080` | 현재 IntelliJ/터미널에서 실행 |
 
-Docker Desktop의 PostgreSQL **Exec** 탭에서는 `psql -U findus -d findus`로 DB에 들어갑니다. 터미널에서는 `docker compose exec postgres psql -U findus -d findus`를 실행하세요. 접속 후 `\l`은 DB 목록, `\dn`은 스키마 목록, `\dt findus.*`는 회원용 스키마의 테이블 목록, `\q`는 종료입니다. 현재 회원 테이블은 없습니다.
+Docker Desktop의 PostgreSQL **Exec** 탭에서는 `psql -U findus -d findus`로 DB에 들어갑니다. 터미널에서는 `docker compose exec postgres psql -U findus -d findus`를 실행하세요. 접속 후 `\l`은 DB 목록, `\dn`은 스키마 목록, `\dt findus.*`는 회원용 스키마의 테이블 목록, `\q`는 종료입니다. 회원 테이블은 `findus.members`입니다.
 
 Redis는 터미널에서 아래 명령으로 접속한 뒤 `PING`을 입력하여 `PONG`을 확인합니다.
 
@@ -119,7 +119,7 @@ docker compose exec redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli -p "$
 
 데이터는 Docker의 named volume에 보관됩니다. **`down -v`는 데이터를 삭제하므로 일반 종료에 사용하지 마세요.** PostgreSQL 비밀번호는 최초 DB 생성 때 설정되어 기존 볼륨이 있으면 `.env` 변경만으로 바뀌지 않습니다. 인증 오류가 나면 IntelliJ 실행 설정의 `POSTGRES_PASSWORD`·`SPRING_DATASOURCE_PASSWORD`가 `.env`를 덮어쓰고 있는지도 확인하세요.
 
-앱 시작 시 Flyway가 `V1__create_application_schema.sql`을 적용하여 `findus` 스키마를 만들고, 재실행 시 중복 적용하지 않습니다. 회원 테이블은 4단계에서 새 마이그레이션으로 추가합니다. 적용된 SQL 파일은 수정하지 않습니다.
+앱 시작 시 Flyway가 V1으로 `findus` 스키마, V2로 `members` 테이블을 만들고, 재실행 시 중복 적용하지 않습니다. 기존 V1 DB에는 V2만 추가 적용합니다. 적용된 SQL 파일은 수정하지 않습니다.
 
 ## 정상 실행 확인 — 공통
 
@@ -161,8 +161,8 @@ Started FindUsApplication in ... seconds
 
 1. 프로젝트·개발 환경 구성
 2. Git·환경변수 설정
-3. **Docker·PostgreSQL·Redis·Flyway 구성 및 연결 검증 — 현재 작업**
-4. UUID 회원 모델·DB 설계
+3. Docker·PostgreSQL·Redis·Flyway 구성 및 연결 검증
+4. **UUID 회원 모델·DB 설계 — 현재 작업**
 5. 회원가입 구현
 6. Spring Security·JWT 로그인·인증 구현
 7. 통합 검증·React 연동 준비
