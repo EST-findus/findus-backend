@@ -12,10 +12,10 @@ FindUs는 AI로 실종아동의 현재 예상 모습을 만들고, 실종 정보
 | 빌드 도구 | Gradle 9.7.1 · Groovy · Wrapper 사용 |
 | 개발 도구 | 백엔드: IntelliJ · 팀원: VS Code |
 | 데이터 저장소 | PostgreSQL 17.11 · Redis 7.4.11 |
-| 현재 단계 | 4단계 UUID 회원 모델·DB 설계 |
-| 다음 작업 | 5단계 회원가입 구현 |
+| 현재 단계 | 5단계 회원가입 API 구현 |
+| 다음 작업 | 6단계 Spring Security·JWT 로그인·인증 |
 
-회원 저장 모델과 Repository를 구성했으며, 회원·인증 API는 아직 없습니다. **백엔드는 IntelliJ/터미널에서, PostgreSQL·Redis는 Docker에서 실행**합니다. Flyway가 DB 구조를 변경하고 JPA는 일치 여부만 검증합니다.
+회원가입 API와 회원 저장 모델·Repository를 구성했습니다. 로그인·JWT 인증은 6단계에서 구현합니다. **백엔드는 IntelliJ/터미널에서, PostgreSQL·Redis는 Docker에서 실행**합니다. Flyway가 DB 구조를 변경하고 JPA는 일치 여부만 검증합니다.
 
 ## 실행 전 준비 — 공통
 
@@ -134,6 +134,42 @@ Started FindUsApplication in ... seconds
 
 **현재 루트(`/`)에 API나 화면이 없어 404가 표시될 수 있습니다.** 위 시작 로그로 실행 여부를 확인하세요. 서버가 켜진 동안 터미널이 계속 실행 상태인 것은 정상입니다.
 
+## 회원가입 확인
+
+서버 실행 후 **`POST /api/members`**로 이메일·비밀번호·이름·닉네임을 보냅니다. 브라우저 주소창은 GET 요청이므로 아래 명령을 사용하세요.
+
+**🍎 macOS — 터미널**
+
+```sh
+curl -i http://localhost:18080/api/members \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"signup.test@example.com","password":"Local-test123!","name":"테스트회원","nickname":"찾음이"}'
+```
+
+**🪟 Windows — PowerShell**
+
+```powershell
+$body = @{ email = 'signup.test@example.com'; password = 'Local-test123!'; name = '테스트회원'; nickname = '찾음이' } | ConvertTo-Json
+Invoke-RestMethod -Uri 'http://localhost:18080/api/members' -Method Post -ContentType 'application/json; charset=utf-8' -Body ([System.Text.Encoding]::UTF8.GetBytes($body))
+```
+
+| 응답 | 의미 |
+| --- | --- |
+| `201 Created` | 가입 성공: UUID·이메일·이름·닉네임 반환 |
+| `400 Bad Request` | 입력 오류: `code`, `message`, `errors`의 항목별 안내 확인 |
+| `409 Conflict` | 이미 사용 중인 이메일: 다른 이메일로 재시도 |
+
+이메일·이름·닉네임의 앞뒤 공백을 제거하고 이메일은 소문자로 저장합니다. 이메일은 최대 254자, 이름은 100자, 닉네임은 50자입니다. 비밀번호는 **8자 이상·UTF-8 기준 72바이트 이하**이며 공백만으로 구성할 수 없습니다. 한글은 보통 한 글자당 3바이트이고 비밀번호의 앞뒤 공백은 그대로 유지합니다.
+
+비밀번호는 `{bcrypt}` 표시가 붙은 해시로 저장하며 응답에 포함하지 않습니다. 가입 권한·상태는 서버에서 `USER`·`ACTIVE`로 정하고 요청의 `role`·`status` 등 추가 항목은 무시합니다. 삭제된 회원의 이메일도 재사용할 수 없습니다. 같은 예시를 다시 실행하면 409가 반환됩니다. 테스트 비밀번호는 실제 계정에 사용하지 마세요.
+
+DB에서 저장 결과를 확인하려면 `psql` 접속 후 아래 SQL을 실행하세요. 비밀번호 해시는 조회하지 않아도 됩니다.
+
+```sql
+SELECT id, email, name, nickname, role, status, created_at
+FROM findus.members WHERE email = 'signup.test@example.com';
+```
+
 ## IDE 설정 — 공통
 
 - **IntelliJ:** Gradle 프로젝트로 열고 Project SDK·Gradle JVM을 JDK 17, Gradle 배포를 Wrapper로 설정합니다. Run Configuration의 Working directory를 `findus-backend` 루트로 지정하고 `FindUsApplication.java`의 `main`을 실행합니다. `.env` 플러그인은 필요 없습니다. 임시 값은 Environment variables에 `SERVER_PORT=18081`처럼 넣을 수 있습니다. 종료는 정지 버튼입니다.
@@ -162,8 +198,8 @@ Started FindUsApplication in ... seconds
 1. 프로젝트·개발 환경 구성
 2. Git·환경변수 설정
 3. Docker·PostgreSQL·Redis·Flyway 구성 및 연결 검증
-4. **UUID 회원 모델·DB 설계 — 현재 작업**
-5. 회원가입 구현
+4. UUID 회원 모델·DB 설계
+5. **회원가입 구현 — 현재 작업**
 6. Spring Security·JWT 로그인·인증 구현
 7. 통합 검증·React 연동 준비
 
