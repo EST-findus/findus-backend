@@ -2,7 +2,7 @@
 
 AI로 실종아동의 현재 예상 모습을 만들고, 실종 정보 검색·공유와 공식 제보 연결을 돕는 서비스의 백엔드입니다. AI 이미지는 참고용이며 실제 신원 일치를 보장하지 않습니다.
 
-**개발을 몰라도 아래 순서대로 서버를 실행하고, 테스트 화면의 버튼으로 확인할 수 있습니다.** 각자 컴퓨터의 PostgreSQL·Redis에 연결합니다.
+**아래 순서대로 서버를 실행하고 응답을 확인할 수 있습니다.** 각자 컴퓨터의 PostgreSQL·Redis에 연결합니다.
 
 ## 1️⃣ 준비하기
 
@@ -21,7 +21,7 @@ git clone https://github.com/EST-findus/findus-backend.git
 cd findus-backend
 ```
 
-이미 내려받았다면 다시 복제하지 말고 해당 폴더에서 작업하세요. 테스트 화면은 이 변경사항이 포함된 브랜치에서 제공됩니다. PR 머지 전이라면 `git switch feat/member-auth`로 전환합니다.
+이미 내려받았다면 다시 복제하지 말고 해당 폴더에서 작업하세요. 팀 개발 브랜치는 `dev`입니다. 최초 복제 후 `git switch dev`로 전환합니다.
 
 ## 3️⃣ 개인 설정 준비하기
 
@@ -93,36 +93,42 @@ Started FindUsApplication
 
 IntelliJ에서는 JDK·Gradle JVM을 17로 설정한 뒤 `FindUsApplication`을 실행해도 됩니다. 작업 폴더는 `findus-backend`로 지정합니다. 기본 `local` 프로필은 상위 `FindUs` 폴더에서 실행해도 백엔드 `.env`를 읽습니다. 서버는 한 번만 실행하세요.
 
-## 6️⃣ 테스트 화면 열기
+## 6️⃣ 서버 응답 확인하기
 
-브라우저에서 **[🧪 테스트 보드 열기](http://localhost:18080/test/mainboard)**를 누르거나 다음 주소를 입력합니다.
+브라우저에서 **[🩺 서버 확인](http://localhost:18080/health)**을 엽니다.
 
 ```text
-http://localhost:18080/test/mainboard
+http://localhost:18080/health
 ```
 
-`localhost`는 **자신의 컴퓨터**입니다. 팀원도 본인 컴퓨터에서 위 설정을 완료해야 합니다. `.env`의 서버 포트를 바꿨다면 주소의 `18080`도 바꾸세요.
+아래처럼 세 줄이 모두 **`ok`**면 서버·DB·Redis 연결이 정상입니다. PostgreSQL은 `SELECT 1`, Redis는 `PING` 요청으로 실제 연결을 확인합니다.
 
-테스트 URL에는 고정된 표준이 없습니다. 이 프로젝트는 테스트 기능을 모아 둔 **`/test/mainboard`**를 사용합니다. 이 화면과 관련 파일은 `local` 프로필에서만 제공됩니다.
+```text
+Spring Boot: ok
+PostgreSQL: ok
+Redis: ok
+```
 
-## 7️⃣ 버튼을 눌러 확인하기
+로그인은 필요하지 않습니다. 연결 실패 항목은 `fail`로 표시됩니다. 모두 정상이면 HTTP **200**, 하나라도 실패하면 **503**입니다. `localhost`는 자신의 컴퓨터이며, 서버 포트를 바꿨다면 주소의 `18080`도 바꿉니다.
 
-화면에 테스트 계정이 자동으로 준비됩니다. **테스트용 정보**를 사용하고, 1번부터 차례대로 누르세요. 로그인해야 다음 버튼이 활성화됩니다.
+## 7️⃣ 회원가입 확인하기
 
-| 순서 | 버튼 | 정상 결과 |
-| --- | --- | --- |
-| 1 | 🙋 회원가입 | 201 · 실제 로컬 DB에 회원 저장 |
-| 2 | 🔑 로그인 | 200 · 로그인 완료 |
-| 3 | 👤 내 정보 조회 | 200 · 저장된 이메일·이름·닉네임 확인 |
-| 4 | 🔄 토큰 재발급 | 200 · 로그인 유지용 새 토큰 발급 |
-| 5 | 🚪 로그아웃 | 204 · 로그인 종료 |
-| 6 | 🛡️ 로그아웃 후 접근 확인 | 401 · 이전 토큰의 접근 차단 |
+Postman에서 아래 요청을 보냅니다. 테스트용 이메일은 매번 다르게 입력하세요.
 
-오른쪽 **📬 서버 응답**에서 JSON 결과와 최근 기록을 확인합니다. 비밀번호는 응답에 포함되지 않고, 인증 토큰은 화면이 자동으로 관리합니다. 204는 응답 본문이 없는 정상 결과입니다.
+- 메서드: **POST**
+- 주소: `http://localhost:18080/api/members`
+- Body: **raw → JSON**
 
-추가 버튼으로 **중복 가입(409)·짧은 비밀번호(400)·틀린 비밀번호(401)·보안 토큰 누락(403)**도 확인할 수 있습니다. 이 경우에는 요청이 거부되어야 ✅ 성공입니다. 중복·틀린 비밀번호 확인은 회원가입 후 사용하세요.
+```json
+{
+  "email": "test@example.com",
+  "password": "Local-test123!",
+  "name": "테스트회원",
+  "nickname": "찾음이"
+}
+```
 
-다른 회원으로 반복하려면 로그아웃 후 **🎲 새 테스트 계정**을 누릅니다. 새로고침하면 화면의 토큰·기록은 초기화되지만, 저장된 회원과 브라우저 쿠키는 유지됩니다.
+**201** 응답이면 회원이 로컬 DB에 저장됐습니다. 같은 이메일로 다시 가입하면 **409**가 반환됩니다. 로그인 요청 방법은 아래 React 연결 안내를 참고하세요.
 
 ## 8️⃣ 마무리하기
 
@@ -144,8 +150,8 @@ docker compose down
 | Java 버전 오류 | JDK 17과 `JAVA_HOME` 설정 |
 | JWT 설정 오류 | `.env`의 `JWT_SECRET`에 생성한 키를 넣었는지 확인 |
 | DB 비밀번호 오류 | 기존 DB 비밀번호와 `.env`·IDE 환경변수가 같은지 확인 |
-| 주소가 열리지 않음 | 서버 시작 로그·포트·local 프로필·브랜치 확인 |
-| 버튼 결과가 예상과 다름 | 화면의 JSON 오류 안내를 확인하고 순서대로 재시도 |
+| 주소가 열리지 않음 | 서버 시작 로그·포트 확인 |
+| 회원가입이 실패함 | 응답의 JSON 오류 안내 확인 |
 
 ## 🧰 개발자용 참고
 
@@ -158,7 +164,38 @@ docker compose down
 - 회원 API: `POST /api/members` · `GET /api/members/me`
 - 인증 API: `GET /api/auth/csrf` · `POST /api/auth/login` · `/api/auth/refresh` · `/api/auth/logout`
 - Access 15분 · Refresh 7일 · 재발급 시 Refresh 교체 · 로그아웃 시 해당 로그인 세션 즉시 차단
+- 연결 상태 확인: `GET /health` · 세 줄의 일반 텍스트 (`text/plain`) · 정상 200 / 연결 실패 503
 - React 기본 허용 주소: `http://localhost:5173` · 쿠키 요청은 `credentials: 'include'`
 - HTTPS 배포 시 `AUTH_COOKIE_SECURE=true` · 다른 사이트에 배포하면 쿠키 정책 추가 검토
 - `.env`·개인 IDE 설정·빌드 결과는 Git에서 제외합니다. 적용된 Flyway SQL은 수정하지 않습니다.
 - Windows 실제 실행은 팀원 확인이 필요합니다.
+
+## ⚛️ React에서 인증 연결하기
+
+개발 주소는 `http://localhost:5173`, API 주소는 `http://localhost:18080`입니다. 양쪽 모두 `localhost`를 사용하세요. 프론트 주소가 바뀌면 `.env`의 `FRONTEND_ORIGIN`을 수정하고 서버를 재시작합니다.
+
+1. 회원가입은 `POST /api/members`에 이메일·비밀번호·이름·닉네임을 JSON으로 보냅니다.
+2. 로그인·재발급·로그아웃 전 `GET /api/auth/csrf`를 호출해 응답의 `token`, `headerName`을 받습니다.
+3. 해당 POST 요청에 검증 헤더를 추가합니다. 모든 인증 요청은 `credentials: 'include'`를 사용합니다.
+4. 응답의 Access Token은 메모리에 보관하고, 내 정보 조회에는 `Authorization: Bearer <토큰>`을 보냅니다. Refresh 쿠키는 브라우저가 관리합니다.
+
+```javascript
+const api = 'http://localhost:18080';
+
+// React에서 로그인할 때 사용하는 예시입니다. 비밀번호와 토큰은 로그에 출력하지 않습니다.
+async function login(email, password) {
+  const csrfResponse = await fetch(`${api}/api/auth/csrf`, { credentials: 'include', cache: 'no-store' });
+  if (!csrfResponse.ok) throw new Error('보안 토큰을 준비하지 못했습니다.');
+  const csrf = await csrfResponse.json();
+  const response = await fetch(`${api}/api/auth/login`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', [csrf.headerName]: csrf.token },
+    body: JSON.stringify({ email, password })
+  });
+  if (!response.ok) throw new Error('로그인에 실패했습니다.');
+  return response.json();
+}
+```
+
+새로고침 후에는 CSRF를 준비하고 `/api/auth/refresh`로 Access Token을 다시 받습니다. 재발급은 동시에 여러 번 호출하지 마세요. 재발급도 401이면 로그인 화면으로 이동합니다. 헬스체크가 정상이어도 회원가입·로그인 동작은 별도로 테스트해야 합니다.
