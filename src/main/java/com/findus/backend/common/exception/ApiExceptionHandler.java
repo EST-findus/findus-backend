@@ -1,6 +1,8 @@
 package com.findus.backend.common.exception;
 
 import com.findus.backend.member.exception.DuplicateEmailException;
+import com.findus.backend.auth.exception.AuthException;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -12,6 +14,18 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+	@ExceptionHandler(AuthException.class)
+	public ResponseEntity<ApiErrorResponse> unauthorized() {
+		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiErrorResponse.of(
+				"UNAUTHORIZED", "인증 정보가 올바르지 않거나 만료되었습니다."));
+	}
+
+	@ExceptionHandler(DataAccessResourceFailureException.class)
+	public ResponseEntity<ApiErrorResponse> unavailable() {
+		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiErrorResponse.of(
+				"SERVICE_UNAVAILABLE", "서비스를 잠시 사용할 수 없습니다."));
+	}
 
 	@ExceptionHandler(MethodArgumentNotValidException.class)
 	public ResponseEntity<ApiErrorResponse> invalidRequest(MethodArgumentNotValidException exception) {

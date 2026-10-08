@@ -1,208 +1,164 @@
-# FindUs Backend
+# 🔎 FindUs Backend
 
-FindUs는 AI로 실종아동의 현재 예상 모습을 만들고, 실종 정보 검색·공유와 공식 제보 연결을 돕는 서비스입니다. AI 예상 얼굴은 참고 이미지이며 실제 신원 일치를 보장하지 않습니다.
+AI로 실종아동의 현재 예상 모습을 만들고, 실종 정보 검색·공유와 공식 제보 연결을 돕는 서비스의 백엔드입니다. AI 이미지는 참고용이며 실제 신원 일치를 보장하지 않습니다.
 
-이 저장소는 **백엔드(서버)** 코드입니다. 백엔드는 화면에서 보낸 요청을 처리하고 데이터를 관리합니다. 코드만 읽는 팀원은 서버를 실행하지 않아도 됩니다.
+**개발을 몰라도 아래 순서대로 서버를 실행하고, 테스트 화면의 버튼으로 확인할 수 있습니다.** 각자 컴퓨터의 PostgreSQL·Redis에 연결합니다.
 
-## 현재 상태와 개발 환경
+## 1️⃣ 준비하기
 
-| 항목 | 내용 |
-| --- | --- |
-| Java / Spring Boot | JDK 17 / 4.1.1 |
-| 빌드 도구 | Gradle 9.7.1 · Groovy · Wrapper 사용 |
-| 개발 도구 | 백엔드: IntelliJ · 팀원: VS Code |
-| 데이터 저장소 | PostgreSQL 17.11 · Redis 7.4.11 |
-| 현재 단계 | 5단계 회원가입 API 구현 |
-| 다음 작업 | 6단계 Spring Security·JWT 로그인·인증 |
+- **Git**: 프로젝트를 내려받는 도구
+- **JDK 17**: Java 서버를 실행하는 도구
+- **Docker Desktop**: DB와 Redis를 실행하는 도구
 
-회원가입 API와 회원 저장 모델·Repository를 구성했습니다. 로그인·JWT 인증은 6단계에서 구현합니다. **백엔드는 IntelliJ/터미널에서, PostgreSQL·Redis는 Docker에서 실행**합니다. Flyway가 DB 구조를 변경하고 JPA는 일치 여부만 검증합니다.
+Docker Desktop을 켜고, 터미널을 엽니다. Mac은 **터미널**, Windows는 **PowerShell**을 사용하세요. Gradle은 프로젝트에 포함되어 별도 설치하지 않습니다.
 
-## 실행 전 준비 — 공통
+## 2️⃣ 프로젝트 내려받기
 
-1. JDK 17과 Docker Desktop을 준비하고 Docker Desktop을 실행합니다.
-2. 이 저장소의 `findus-backend` 폴더를 엽니다.
-3. IDE의 터미널을 엽니다. `build.gradle` 파일이 있는 폴더에서 명령을 실행하세요.
-4. 아래에서 **본인의 운영체제에 해당하는 구역만** 따라 하세요.
+두 운영체제 모두 같은 명령을 사용합니다.
 
-Gradle은 Wrapper가 준비하므로 별도 설치하지 않습니다. 최초 실행에는 인터넷 연결이 필요합니다.
+```sh
+git clone https://github.com/EST-findus/findus-backend.git
+cd findus-backend
+```
 
-## 🍎 macOS — 터미널
+이미 내려받았다면 다시 복제하지 말고 해당 폴더에서 작업하세요. 테스트 화면은 이 변경사항이 포함된 브랜치에서 제공됩니다. PR 머지 전이라면 `git switch feat/member-auth`로 전환합니다.
 
-JDK 17을 선택하고 버전을 확인합니다. 출력에 `17`이 표시되어야 합니다.
+## 3️⃣ 개인 설정 준비하기
+
+**처음 실행할 때만** `.env.example`을 `.env`로 복사합니다. 기존 `.env`가 있으면 덮어쓰지 마세요. 세 항목이 이미 설정되어 있다면 4단계로 넘어갑니다.
+
+**🍎 macOS**
 
 ```sh
 export JAVA_HOME=$(/usr/libexec/java_home -v 17)
 java -version
+[ -f .env ] || cp .env.example .env
+openssl rand -base64 32
 ```
 
-최초 1회 `.env`를 준비합니다. **이미 있다면 복사하지 마세요.** 비밀번호 예시 두 곳을 개인 로컬 비밀번호로 바꿉니다.
-
-```sh
-cp .env.example .env
-```
-
-DB·Redis를 시작하고 빌드·테스트 성공(`BUILD SUCCESSFUL`) 후 서버를 실행합니다.
-
-```sh
-docker compose up -d --wait
-./gradlew clean build
-./gradlew bootRun
-```
-
-- 실행 권한 오류: `chmod +x gradlew` 실행 후 재시도
-- 18080 포트가 사용 중: `./gradlew bootRun --args='--server.port=18081'`
-- 종료: `Ctrl+C`
-
-## 🪟 Windows — PowerShell
-
-아래 경로를 **본인이 설치한 JDK 17 폴더**로 바꾸세요. `bin` 폴더가 아닌 상위 JDK 폴더입니다. 버전 출력에 `17`이 표시되어야 합니다.
+**🪟 Windows PowerShell** — JDK 경로는 본인이 설치한 위치로 바꿉니다.
 
 ```powershell
 $env:JAVA_HOME = 'C:\Program Files\Java\jdk-17'
 & "$env:JAVA_HOME\bin\java.exe" -version
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+$bytes = New-Object byte[] 32
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+$rng.GetBytes($bytes)
+[Convert]::ToBase64String($bytes)
+$rng.Dispose()
 ```
 
-최초 1회 `.env`를 준비합니다. **이미 있다면 복사하지 마세요.** 비밀번호 예시 두 곳을 개인 로컬 비밀번호로 바꿉니다.
+`.env`를 편집기로 열어 **아래 세 항목의 예시 값**을 바꾸고 저장합니다.
 
-```powershell
-Copy-Item .env.example .env
-```
-
-DB·Redis를 시작하고 빌드·테스트 성공(`BUILD SUCCESSFUL`) 후 서버를 실행합니다.
-
-```powershell
-docker compose up -d --wait
-.\gradlew.bat clean build
-.\gradlew.bat bootRun
-```
-
-- Wrapper를 찾지 못함: `findus-backend` 폴더에서 실행 중인지 확인
-- 18080 포트가 사용 중: `.\gradlew.bat bootRun --args='--server.port=18081'`
-- 종료: `Ctrl+C`
-
-> 두 운영체제 모두 위 `JAVA_HOME` 설정은 현재 터미널에 적용됩니다. 새 터미널에서는 다시 설정해야 합니다.
-
-## 환경변수 — 공통
-
-위 복사 명령은 최초 1회만 실행합니다. 기존 `.env`가 있으면 복사하지 마세요. `.env`의 `SERVER_PORT`를 수정하면 다음 실행부터 적용됩니다. 값은 따옴표 없이 `KEY=value`로 작성하고 줄 끝 주석·`export`·역슬래시는 사용하지 않습니다. 파일은 UTF-8로 저장하세요.
-
-기본 `local` 프로필에서 `findus-backend/.env`를 자동으로 읽습니다. IntelliJ에서 상위 `FindUs` 폴더를 열어 실행해도 읽을 수 있습니다. 두 위치에 `.env`가 모두 있으면 현재 작업 폴더의 파일이 우선합니다. **명령행 옵션 → OS/IDE 환경변수 → `.env` → 기본값** 순서로 우선 적용됩니다. 서버 실행에는 DB 접속 정보와 비밀번호가 필요합니다.
-
-`POSTGRES_HOST`·`REDIS_HOST`는 `localhost`, 포트는 기본 `15432`·`16379`입니다. 충돌 시 `.env`의 포트를 바꾸고 컨테이너를 다시 시작하세요. 실제 비밀번호는 `.env`에만 작성합니다. 다른 프로필은 OS/IDE의 `SPRING_PROFILES_ACTIVE`로 선택하며 `.env`에는 넣지 않습니다.
-
-## Docker·연결 확인 — 공통
-
-`docker compose ps`에서 두 서비스가 `healthy`인지 확인합니다. IntelliJ에서도 실행 전 Compose를 시작하세요. 테스트는 개발 DB 대신 Testcontainers가 만드는 임시 DB·Redis를 사용하며 Docker가 필요합니다.
-
-| 명령 / 항목 | 의미 |
+| 항목 | 넣을 값 |
 | --- | --- |
-| `docker compose up -d --wait` | DB·Redis 실행 및 준비 완료 대기 |
-| `docker compose down` | 컨테이너 종료 · 저장된 데이터는 유지 |
-| `docker compose logs --tail=30` | 최근 로그 확인 · 공유 전 민감값 확인 |
-| `./gradlew test` / `.\gradlew.bat test` | DB/JPA 읽기·쓰기, Redis·인증·Flyway 통합 테스트 |
+| `POSTGRES_PASSWORD` | 본인 로컬 DB 비밀번호 · 영문·숫자 조합 권장 |
+| `REDIS_PASSWORD` | 본인 로컬 Redis 비밀번호 · 영문·숫자 조합 권장 |
+| `JWT_SECRET` | 바로 위 명령이 출력한 무작위 키 |
 
-내 컴퓨터와 컨테이너 내부의 포트를 동일하게 사용합니다.
+`java -version`에 **17**이 표시되어야 합니다. `.env`는 UTF-8로 저장하고 `KEY=value` 형식을 사용합니다. 실제 비밀번호·키는 Git에 올리지 않습니다. 기존 DB의 비밀번호는 `.env` 수정만으로 바뀌지 않습니다.
 
-| 서비스 | 내 컴퓨터에서 접속 | 컨테이너 내부 포트 |
-| --- | --- | --- |
-| PostgreSQL | `localhost:15432` | `15432` |
-| Redis | `localhost:16379` | `16379` |
-| Spring Boot | `http://localhost:18080` | 현재 IntelliJ/터미널에서 실행 |
+## 4️⃣ DB와 Redis 켜기
 
-Docker Desktop의 PostgreSQL **Exec** 탭에서는 `psql -U findus -d findus`로 DB에 들어갑니다. 터미널에서는 `docker compose exec postgres psql -U findus -d findus`를 실행하세요. 접속 후 `\l`은 DB 목록, `\dn`은 스키마 목록, `\dt findus.*`는 회원용 스키마의 테이블 목록, `\q`는 종료입니다. 회원 테이블은 `findus.members`입니다.
-
-Redis는 터미널에서 아래 명령으로 접속한 뒤 `PING`을 입력하여 `PONG`을 확인합니다.
+`build.gradle`이 있는 폴더에서 실행하세요.
 
 ```sh
-docker compose exec redis sh -c 'REDISCLI_AUTH="$REDIS_PASSWORD" redis-cli -p "$REDIS_PORT"'
+docker compose up -d --wait
+docker compose ps
 ```
 
-데이터는 Docker의 named volume에 보관됩니다. **`down -v`는 데이터를 삭제하므로 일반 종료에 사용하지 마세요.** PostgreSQL 비밀번호는 최초 DB 생성 때 설정되어 기존 볼륨이 있으면 `.env` 변경만으로 바뀌지 않습니다. 인증 오류가 나면 IntelliJ 실행 설정의 `POSTGRES_PASSWORD`·`SPRING_DATASOURCE_PASSWORD`가 `.env`를 덮어쓰고 있는지도 확인하세요.
+PostgreSQL과 Redis가 모두 **healthy**면 준비 완료입니다.
 
-앱 시작 시 Flyway가 V1으로 `findus` 스키마, V2로 `members` 테이블을 만들고, 재실행 시 중복 적용하지 않습니다. 기존 V1 DB에는 V2만 추가 적용합니다. 적용된 SQL 파일은 수정하지 않습니다.
+## 5️⃣ 서버 켜기
 
-## 정상 실행 확인 — 공통
+**🍎 macOS**
 
-다음 로그가 보이면 서버가 시작된 상태입니다.
+```sh
+./gradlew bootRun --args='--spring.profiles.active=local'
+```
+
+**🪟 Windows PowerShell**
+
+```powershell
+.\gradlew.bat bootRun --args='--spring.profiles.active=local'
+```
+
+처음에는 도구와 라이브러리를 내려받아 시간이 걸립니다. 아래 로그가 나오면 성공이며, **터미널은 켜 둡니다.**
 
 ```text
-Tomcat started on port 18080 (http) with context path '/'
-Started FindUsApplication in ... seconds
+Tomcat started on port 18080
+Started FindUsApplication
 ```
 
-기본 접속 주소는 `http://localhost:18080`입니다. `localhost`는 자신의 컴퓨터를 뜻합니다. `.env`나 실행 옵션에서 포트를 바꿨다면 접속 주소도 시작 로그의 포트에 맞추세요.
+IntelliJ에서는 JDK·Gradle JVM을 17로 설정한 뒤 `FindUsApplication`을 실행해도 됩니다. 작업 폴더는 `findus-backend`로 지정합니다. 기본 `local` 프로필은 상위 `FindUs` 폴더에서 실행해도 백엔드 `.env`를 읽습니다. 서버는 한 번만 실행하세요.
 
-**현재 루트(`/`)에 API나 화면이 없어 404가 표시될 수 있습니다.** 위 시작 로그로 실행 여부를 확인하세요. 서버가 켜진 동안 터미널이 계속 실행 상태인 것은 정상입니다.
+## 6️⃣ 테스트 화면 열기
 
-## 회원가입 확인
+브라우저에서 **[🧪 테스트 보드 열기](http://localhost:18080/test/mainboard)**를 누르거나 다음 주소를 입력합니다.
 
-서버 실행 후 **`POST /api/members`**로 이메일·비밀번호·이름·닉네임을 보냅니다. 브라우저 주소창은 GET 요청이므로 아래 명령을 사용하세요.
+```text
+http://localhost:18080/test/mainboard
+```
 
-**🍎 macOS — 터미널**
+`localhost`는 **자신의 컴퓨터**입니다. 팀원도 본인 컴퓨터에서 위 설정을 완료해야 합니다. `.env`의 서버 포트를 바꿨다면 주소의 `18080`도 바꾸세요.
+
+테스트 URL에는 고정된 표준이 없습니다. 이 프로젝트는 테스트 기능을 모아 둔 **`/test/mainboard`**를 사용합니다. 이 화면과 관련 파일은 `local` 프로필에서만 제공됩니다.
+
+## 7️⃣ 버튼을 눌러 확인하기
+
+화면에 테스트 계정이 자동으로 준비됩니다. **테스트용 정보**를 사용하고, 1번부터 차례대로 누르세요. 로그인해야 다음 버튼이 활성화됩니다.
+
+| 순서 | 버튼 | 정상 결과 |
+| --- | --- | --- |
+| 1 | 🙋 회원가입 | 201 · 실제 로컬 DB에 회원 저장 |
+| 2 | 🔑 로그인 | 200 · 로그인 완료 |
+| 3 | 👤 내 정보 조회 | 200 · 저장된 이메일·이름·닉네임 확인 |
+| 4 | 🔄 토큰 재발급 | 200 · 로그인 유지용 새 토큰 발급 |
+| 5 | 🚪 로그아웃 | 204 · 로그인 종료 |
+| 6 | 🛡️ 로그아웃 후 접근 확인 | 401 · 이전 토큰의 접근 차단 |
+
+오른쪽 **📬 서버 응답**에서 JSON 결과와 최근 기록을 확인합니다. 비밀번호는 응답에 포함되지 않고, 인증 토큰은 화면이 자동으로 관리합니다. 204는 응답 본문이 없는 정상 결과입니다.
+
+추가 버튼으로 **중복 가입(409)·짧은 비밀번호(400)·틀린 비밀번호(401)·보안 토큰 누락(403)**도 확인할 수 있습니다. 이 경우에는 요청이 거부되어야 ✅ 성공입니다. 중복·틀린 비밀번호 확인은 회원가입 후 사용하세요.
+
+다른 회원으로 반복하려면 로그아웃 후 **🎲 새 테스트 계정**을 누릅니다. 새로고침하면 화면의 토큰·기록은 초기화되지만, 저장된 회원과 브라우저 쿠키는 유지됩니다.
+
+## 8️⃣ 마무리하기
+
+서버 실행 터미널에서 **Ctrl+C**를 누른 뒤 DB·Redis를 종료합니다.
 
 ```sh
-curl -i http://localhost:18080/api/members \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"signup.test@example.com","password":"Local-test123!","name":"테스트회원","nickname":"찾음이"}'
+docker compose down
 ```
 
-**🪟 Windows — PowerShell**
+저장된 회원 데이터는 유지됩니다. **`down -v`는 데이터를 삭제하므로 일반 종료에 사용하지 마세요.**
 
-```powershell
-$body = @{ email = 'signup.test@example.com'; password = 'Local-test123!'; name = '테스트회원'; nickname = '찾음이' } | ConvertTo-Json
-Invoke-RestMethod -Uri 'http://localhost:18080/api/members' -Method Post -ContentType 'application/json; charset=utf-8' -Body ([System.Text.Encoding]::UTF8.GetBytes($body))
-```
+## 🧯 실행이 안 될 때
 
-| 응답 | 의미 |
+| 상황 | 확인할 것 |
 | --- | --- |
-| `201 Created` | 가입 성공: UUID·이메일·이름·닉네임 반환 |
-| `400 Bad Request` | 입력 오류: `code`, `message`, `errors`의 항목별 안내 확인 |
-| `409 Conflict` | 이미 사용 중인 이메일: 다른 이메일로 재시도 |
+| Git 복제 권한 오류 | GitHub 로그인과 저장소 접근 권한 |
+| Docker 연결 오류 | Docker Desktop 실행 여부 |
+| `Permission denied` · Mac | `chmod +x gradlew` 후 재실행 |
+| Java 버전 오류 | JDK 17과 `JAVA_HOME` 설정 |
+| JWT 설정 오류 | `.env`의 `JWT_SECRET`에 생성한 키를 넣었는지 확인 |
+| DB 비밀번호 오류 | 기존 DB 비밀번호와 `.env`·IDE 환경변수가 같은지 확인 |
+| 주소가 열리지 않음 | 서버 시작 로그·포트·local 프로필·브랜치 확인 |
+| 버튼 결과가 예상과 다름 | 화면의 JSON 오류 안내를 확인하고 순서대로 재시도 |
 
-이메일·이름·닉네임의 앞뒤 공백을 제거하고 이메일은 소문자로 저장합니다. 이메일은 최대 254자, 이름은 100자, 닉네임은 50자입니다. 비밀번호는 **8자 이상·UTF-8 기준 72바이트 이하**이며 공백만으로 구성할 수 없습니다. 한글은 보통 한 글자당 3바이트이고 비밀번호의 앞뒤 공백은 그대로 유지합니다.
+## 🧰 개발자용 참고
 
-비밀번호는 `{bcrypt}` 표시가 붙은 해시로 저장하며 응답에 포함하지 않습니다. 가입 권한·상태는 서버에서 `USER`·`ACTIVE`로 정하고 요청의 `role`·`status` 등 추가 항목은 무시합니다. 삭제된 회원의 이메일도 재사용할 수 없습니다. 같은 예시를 다시 실행하면 409가 반환됩니다. 테스트 비밀번호는 실제 계정에 사용하지 마세요.
-
-DB에서 저장 결과를 확인하려면 `psql` 접속 후 아래 SQL을 실행하세요. 비밀번호 해시는 조회하지 않아도 됩니다.
-
-```sql
-SELECT id, email, name, nickname, role, status, created_at
-FROM findus.members WHERE email = 'signup.test@example.com';
-```
-
-## IDE 설정 — 공통
-
-- **IntelliJ:** Gradle 프로젝트로 열고 Project SDK·Gradle JVM을 JDK 17, Gradle 배포를 Wrapper로 설정합니다. Run Configuration의 Working directory를 `findus-backend` 루트로 지정하고 `FindUsApplication.java`의 `main`을 실행합니다. `.env` 플러그인은 필요 없습니다. 임시 값은 Environment variables에 `SERVER_PORT=18081`처럼 넣을 수 있습니다. 종료는 정지 버튼입니다.
-- **VS Code:** 실행할 팀원은 JDK 17과 `Extension Pack for Java`를 준비한 뒤 통합 터미널에서 위 명령을 사용하세요. 코드 확인만 한다면 확장 설치는 필수가 아닙니다.
-
-## 주요 파일과 Git 규칙
-
-| 경로 | 역할 |
-| --- | --- |
-| `src/main/java/` | 서버 코드. `FindUsApplication.java`가 실행 진입점 |
-| `src/main/resources/` | Spring Boot 설정 |
-| `src/test/java/` | 자동 테스트 |
-| `build.gradle` / `settings.gradle` | 버전·라이브러리·프로젝트 설정 |
-| `gradlew` / `gradlew.bat` / `gradle/wrapper/` | 공통 Gradle 실행 도구 |
-| `.gitignore` / `.gitattributes` | 개인 파일 제외·줄바꿈 관리 |
-| `docker-compose.yml` | 로컬 DB·Redis 실행과 데이터 유지 |
-| `src/main/resources/db/migration/` | Flyway DB 변경 이력 |
-| `.coderabbit.yaml` | 한국어 코드 리뷰·요약 설정 |
-
-소스·Wrapper·공통 설정·`application-local.yml`·`.env.example`은 공유합니다. 개인 IDE 설정·빌드 결과·`.env`·비밀값·Docker 데이터·로그는 제외합니다. 실제 비밀번호는 공유 파일에 넣지 않습니다. `.env`는 루트 외부 파일이라 JAR에 포함되지 않습니다.
-
-커밋 전 `git status --short`를 확인하세요. 이미 추적 중인 파일은 `.gitignore`만으로 제외되지 않습니다.
-
-## 개발 순서
-
-1. 프로젝트·개발 환경 구성
-2. Git·환경변수 설정
-3. Docker·PostgreSQL·Redis·Flyway 구성 및 연결 검증
-4. UUID 회원 모델·DB 설계
-5. **회원가입 구현 — 현재 작업**
-6. Spring Security·JWT 로그인·인증 구현
-7. 통합 검증·React 연동 준비
-
-이슈 → 브랜치 → 구현·검증 → 검토 → 커밋·푸시 → PR·머지 순서로 진행합니다. GitHub 작업은 담당자가 직접 수행합니다.
-
-Windows 실행은 팀원 확인이 필요합니다. 테스트 보고서는 빌드 후 `build/reports/tests/test/index.html`에서 볼 수 있습니다. CodeRabbit은 앱 설치·저장소 접근이 완료되어 있어야 동작합니다. dev·main PR을 한국어로 리뷰하고 Draft는 제외하며, 요약은 짧게 제공합니다.
+- 환경: Java 17 · Spring Boot 4.1.1 · Gradle Wrapper · PostgreSQL 17.11 · Redis 7.4.11
+- 포트: 서버 `18080` · PostgreSQL `15432` · Redis `16379`
+- 자동 테스트: Mac `./gradlew test` · Windows `.\gradlew.bat test` · Docker 필요
+- 테스트 보고서: `build/reports/tests/test/index.html`
+- DB 접속: `docker compose exec postgres psql -U findus -d findus -p 15432`
+- DB 확인: `SELECT id, email, name, nickname, role, status FROM findus.members;`
+- 회원 API: `POST /api/members` · `GET /api/members/me`
+- 인증 API: `GET /api/auth/csrf` · `POST /api/auth/login` · `/api/auth/refresh` · `/api/auth/logout`
+- Access 15분 · Refresh 7일 · 재발급 시 Refresh 교체 · 로그아웃 시 해당 로그인 세션 즉시 차단
+- React 기본 허용 주소: `http://localhost:5173` · 쿠키 요청은 `credentials: 'include'`
+- HTTPS 배포 시 `AUTH_COOKIE_SECURE=true` · 다른 사이트에 배포하면 쿠키 정책 추가 검토
+- `.env`·개인 IDE 설정·빌드 결과는 Git에서 제외합니다. 적용된 Flyway SQL은 수정하지 않습니다.
+- Windows 실제 실행은 팀원 확인이 필요합니다.

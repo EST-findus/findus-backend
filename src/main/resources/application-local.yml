@@ -6,3 +6,8 @@ spring:
     import:
       - "optional:file:./findus-backend/.env[.properties]"
       - "optional:file:./.env[.properties]"
+
+# 로컬 HTTP 개발에서만 Secure 쿠키를 해제합니다. 배포 시에는 HTTPS를 사용합니다.
+app:
+  auth:
+    cookie-secure: ${AUTH_COOKIE_SECURE:false}

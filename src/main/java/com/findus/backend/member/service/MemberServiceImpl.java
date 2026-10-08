@@ -1,5 +1,9 @@
 package com.findus.backend.member.service;
 
+import java.util.UUID;
+import com.findus.backend.auth.exception.AuthException;
+import com.findus.backend.member.dto.MemberInfoResponse;
+import com.findus.backend.member.entity.MemberStatus;
 import com.findus.backend.member.dto.MemberSignupRequest;
 import com.findus.backend.member.dto.MemberSignupResponse;
 import com.findus.backend.member.entity.Member;
@@ -33,5 +37,13 @@ public class MemberServiceImpl implements MemberService {
 				request.name(), request.nickname());
 		// 동시에 들어온 요청의 중복은 DB UNIQUE 제약이 최종 방어합니다.
 		return MemberSignupResponse.from(memberRepository.save(member));
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public MemberInfoResponse findMe(UUID id) {
+		Member member = memberRepository.findById(id).orElseThrow(AuthException::new);
+		if (member.getStatus() != MemberStatus.ACTIVE) { throw new AuthException(); }
+		return MemberInfoResponse.from(member);
 	}
 }
