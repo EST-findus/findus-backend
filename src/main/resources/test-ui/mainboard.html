@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FindUs · 테스트 보드</title>
+  <link rel="stylesheet" href="/test/mainboard.css">
+  <script src="/test/mainboard.js" defer></script>
+</head>
+<body>
+  <main class="board">
+    <header class="page-header">
+      <div><p class="eyebrow">FINDUS · TEAM TEST</p><h1>🧪 버튼으로 확인하는 테스트 보드</h1>
+        <p class="subtitle">계정을 준비하고, 1번부터 차례대로 눌러 보세요.</p></div>
+      <span class="local-badge">🏠 내 컴퓨터에서 테스트</span>
+    </header>
+    <div class="notice">💡 회원가입은 실제 로컬 DB에 저장됩니다. 테스트용 정보로 확인해 주세요.</div>
+    <section class="card account-card" aria-labelledby="account-title">
+      <div class="section-heading"><div><h2 id="account-title">📝 테스트 계정</h2><p>아래 정보로 회원가입과 로그인을 요청합니다.</p></div>
+        <button id="new-account" class="secondary" type="button">🎲 새 테스트 계정</button></div>
+      <div class="fields">
+        <label>이메일<input id="email" type="email" autocomplete="off" placeholder="test@example.com"></label>
+        <label>비밀번호<input id="password" type="password" autocomplete="off" value="Local-test123!"><small>8자 이상 · UTF-8 기준 72바이트 이하</small></label>
+        <label>이름<input id="name" type="text" value="테스트회원" maxlength="100" autocomplete="off"></label>
+        <label>닉네임<input id="nickname" type="text" value="찾음이" maxlength="50" autocomplete="off"></label>
+      </div>
+    </section>
+    <div class="content-grid">
+      <div>
+        <section class="card" aria-labelledby="flow-title">
+          <div class="section-heading"><h2 id="flow-title">🚀 순서대로 확인하기</h2><span id="session-status" class="session-status">로그인 전</span></div>
+          <div class="steps">
+            <button type="button" data-action="signup"><span class="step-number">1</span><span><strong>🙋 회원가입</strong><small>입력한 계정을 DB에 저장해요</small></span><span class="arrow">→</span></button>
+            <button type="button" data-action="login"><span class="step-number">2</span><span><strong>🔑 로그인</strong><small>계정으로 로그인해요</small></span><span class="arrow">→</span></button>
+            <button type="button" data-action="me" disabled><span class="step-number">3</span><span><strong>👤 내 정보 조회</strong><small>저장된 회원 정보를 확인해요</small></span><span class="arrow">→</span></button>
+            <button type="button" data-action="refresh" disabled><span class="step-number">4</span><span><strong>🔄 토큰 재발급</strong><small>로그인 상태를 이어갈 새 토큰을 받아요</small></span><span class="arrow">→</span></button>
+            <button type="button" data-action="logout" disabled><span class="step-number">5</span><span><strong>🚪 로그아웃</strong><small>현재 로그인을 종료해요</small></span><span class="arrow">→</span></button>
+            <button type="button" data-action="blocked" disabled><span class="step-number">6</span><span><strong>🛡️ 로그아웃 후 접근 확인</strong><small>이전 토큰으로 접근이 차단되는지 확인해요</small></span><span class="arrow">→</span></button>
+          </div>
+        </section>
+        <section class="card safety-card" aria-labelledby="safety-title">
+          <h2 id="safety-title">🛡️ 잘못된 요청도 막아줄까요?</h2><p>요청이 거부되면 테스트 성공입니다.</p>
+          <div class="negative-actions">
+            <button type="button" class="secondary" data-action="duplicate">📧 중복 가입 확인</button>
+            <button type="button" class="secondary" data-action="invalid">✏️ 짧은 비밀번호 확인</button>
+            <button type="button" class="secondary" data-action="wrongPassword">🔒 틀린 비밀번호 확인</button>
+            <button type="button" class="secondary" data-action="csrfMissing">🍪 보안 토큰 누락 확인</button>
+          </div>
+          <small>중복 가입은 먼저 1번 회원가입을 완료해 주세요.</small>
+        </section>
+      </div>
+      <section class="card results-card" aria-labelledby="result-title">
+        <div class="section-heading"><h2 id="result-title">📬 서버 응답</h2><span id="http-status" class="http-status">대기 중</span></div>
+        <p id="result-summary" role="status" aria-live="polite">버튼을 누르면 결과가 여기에 표시됩니다.</p>
+        <p id="request-path" class="request-path">요청한 주소와 결과를 함께 확인할 수 있어요.</p>
+        <pre id="response-json" tabindex="0">{ "안내": "1번 회원가입부터 시작해 주세요." }</pre>
+        <small>응답은 JSON으로 표시합니다. 인증 토큰 값은 생략하고 화면 안에서 자동으로 관리합니다.</small>
+        <div class="history-heading"><h3>🕘 최근 확인 기록</h3><button id="clear-history" class="text-button" type="button">기록 지우기</button></div>
+        <ol id="history" class="history"><li class="empty-history">아직 확인한 기록이 없어요.</li></ol>
+      </section>
+    </div>
+    <footer>FindUs · 팀원용 로컬 테스트 화면 · 새로고침하면 화면의 Access Token과 기록이 초기화됩니다.</footer>
+  </main>
+</body>
+</html>

@@ -36,3 +36,13 @@ spring:
 
 server:
   port: ${SERVER_PORT:18080}
+
+# 토큰 서명 키는 .env 또는 배포 환경변수에서만 가져옵니다.
+app:
+  auth:
+    secret: ${JWT_SECRET}
+    issuer: findus
+    access-ttl: ${JWT_ACCESS_TTL:15m}
+    refresh-ttl: ${JWT_REFRESH_TTL:7d}
+    cookie-secure: ${AUTH_COOKIE_SECURE:true}
+    allowed-origins: ${FRONTEND_ORIGIN:http://localhost:5173}
