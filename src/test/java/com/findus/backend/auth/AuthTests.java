@@ -271,14 +271,73 @@ class AuthTests {
 	}
 	// endregion
 
+	// region 전체 인증 흐름과 React 요청 검증
 	@Test
-	@DisplayName("local이 아닌 환경에는 테스트 화면과 파일을 공개하지 않는다")
-	void 테스트_화면은_local에서만_사용한다() throws Exception {
-		assertThat(context.getBeansOfType(com.findus.backend.testboard.TestBoardController.class)).isEmpty();
-		for (String path : List.of("/test/mainboard", "/test/mainboard.css", "/test/mainboard.js")) {
-			mvc.perform(get(path)).andExpect(status().isUnauthorized());
+	@DisplayName("가입부터 재발급·로그아웃까지 이어서 검증하고 이전 토큰을 차단한다")
+	void 전체_인증_흐름을_검증한다() throws Exception {
+		Session first = login(signup());
+		mvc.perform(get("/api/members/me").header("Authorization", "Bearer " + first.access()))
+				.andExpect(status().isOk());
+		MvcResult refreshed = refresh(first.refresh());
+		assertThat(refreshed.getResponse().getStatus()).isEqualTo(200);
+		Session second = session(refreshed);
+		mvc.perform(get("/api/members/me").header("Authorization", "Bearer " + second.access()))
+				.andExpect(status().isOk());
+		mvc.perform(post("/api/auth/logout").with(this::withCsrf).cookie(second.refresh()))
+				.andExpect(status().isNoContent());
+		for (Session old : List.of(first, second)) {
+			mvc.perform(get("/api/members/me").header("Authorization", "Bearer " + old.access()))
+					.andExpect(status().isUnauthorized());
+			assertThat(refresh(old.refresh()).getResponse().getStatus()).isEqualTo(401);
 		}
 	}
+
+	@Test
+	@DisplayName("React 주소의 실제 로그인·조회·재발급·로그아웃 요청에 CORS 헤더를 반환한다")
+	void React_인증_요청을_검증한다() throws Exception {
+		String origin = "http://localhost:5173";
+		var csrf = mvc.perform(get("/api/auth/csrf").header("Origin", origin))
+				.andExpect(status().isOk()).andReturn();
+		var body = mapper.readTree(csrf.getResponse().getContentAsString());
+		var loggedIn = mvc.perform(post("/api/auth/login").header("Origin", origin)
+				.cookie(csrf.getResponse().getCookie("XSRF-TOKEN"))
+				.header(body.get("headerName").asText(), body.get("token").asText())
+				.contentType(MediaType.APPLICATION_JSON).content(loginBody(signup(), PASSWORD)))
+				.andExpect(status().isOk()).andReturn();
+		assertCors(loggedIn, origin);
+		Session first = session(loggedIn);
+		assertCors(mvc.perform(get("/api/members/me").header("Origin", origin)
+				.header("Authorization", "Bearer " + first.access())).andExpect(status().isOk()).andReturn(), origin);
+		var refreshed = mvc.perform(post("/api/auth/refresh").header("Origin", origin)
+				.with(this::withCsrf).cookie(first.refresh())).andExpect(status().isOk()).andReturn();
+		assertCors(refreshed, origin);
+		assertCors(mvc.perform(post("/api/auth/logout").header("Origin", origin)
+				.with(this::withCsrf).cookie(session(refreshed).refresh()))
+				.andExpect(status().isNoContent()).andReturn(), origin);
+		// 미허용 주소는 실제 요청도 거부합니다. 토큰 발급이나 세션 생성으로 이어지지 않습니다.
+		mvc.perform(post("/api/auth/login").header("Origin", "https://unknown.example")
+				.with(this::withCsrf).contentType(MediaType.APPLICATION_JSON).content(loginBody(signup(), PASSWORD)))
+				.andExpect(status().isForbidden());
+	}
+
+	private void assertCors(MvcResult result, String origin) {
+		assertThat(result.getResponse().getHeader("Access-Control-Allow-Origin")).isEqualTo(origin);
+		assertThat(result.getResponse().getHeader("Access-Control-Allow-Credentials")).isEqualTo("true");
+	}
+
+	@Test
+	@DisplayName("로그인 없이 실제 DB·Redis 연결 상태를 세 줄의 텍스트로 반환한다")
+	void 서버와_DB_Redis_연결을_확인한다() throws Exception {
+		mvc.perform(get("/health")).andExpect(status().isOk())
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content()
+						.contentTypeCompatibleWith(MediaType.TEXT_PLAIN))
+				.andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string("Spring Boot: ok\nPostgreSQL: ok\nRedis: ok"));
+		var result = mvc.perform(get("/health").header("Origin", "http://localhost:5173"))
+				.andExpect(status().isOk()).andReturn();
+		assertCors(result, "http://localhost:5173");
+		mvc.perform(get("/api/members/me")).andExpect(status().isUnauthorized());
+	}
+	// endregion
 
 	// region 테스트 보조 메서드
 	private org.springframework.mock.web.MockHttpServletRequest withCsrf(org.springframework.mock.web.MockHttpServletRequest request) {

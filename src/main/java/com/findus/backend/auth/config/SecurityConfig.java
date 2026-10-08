@@ -11,8 +11,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.core.env.Environment;
-import org.springframework.core.env.Profiles;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -31,7 +29,7 @@ public class SecurityConfig {
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthProperties properties,
 			JwtTokenService tokens, AuthSessionRepository sessions, MemberRepository members,
-			SecurityErrorWriter errors, Environment environment) throws Exception {
+			SecurityErrorWriter errors) throws Exception {
 		var csrf = CookieCsrfTokenRepository.withHttpOnlyFalse();
 		csrf.setCookieCustomizer(cookie -> cookie.secure(properties.cookieSecure()).sameSite("Lax"));
 		http.cors(cors -> {})
@@ -44,12 +42,9 @@ public class SecurityConfig {
 				.requestCache(cache -> cache.disable())
 				.formLogin(form -> form.disable()).httpBasic(basic -> basic.disable()).logout(logout -> logout.disable())
 				.authorizeHttpRequests(auth -> {
-					if (environment.acceptsProfiles(Profiles.of("local"))) {
-						auth.requestMatchers(HttpMethod.GET, "/test/mainboard", "/test/mainboard.css", "/test/mainboard.js").permitAll();
-					}
 					auth
 						.requestMatchers(HttpMethod.POST, "/api/members", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
-						.requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/auth/csrf", "/health").permitAll()
 						.requestMatchers("/api/admin/**").hasRole("ADMIN")
 						.anyRequest().authenticated();
 				})
