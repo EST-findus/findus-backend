@@ -1,6 +1,9 @@
 package com.findus.backend.common.exception;
 
 import com.findus.backend.member.exception.DuplicateEmailException;
+import com.findus.backend.comment.exception.CommentNotFoundException;
+import com.findus.backend.comment.exception.CommentForbiddenException;
+import com.findus.backend.comment.exception.CommentPageException;
 import com.findus.backend.auth.exception.AuthException;
 import com.findus.backend.post.exception.PostForbiddenException;
 import com.findus.backend.post.exception.PostNotFoundException;
@@ -18,6 +21,24 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+	@ExceptionHandler(CommentNotFoundException.class)
+	public ResponseEntity<ApiErrorResponse> commentNotFound() {
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiErrorResponse.of(
+				"COMMENT_NOT_FOUND", "댓글을 찾을 수 없습니다."));
+	}
+
+	@ExceptionHandler(CommentForbiddenException.class)
+	public ResponseEntity<ApiErrorResponse> commentForbidden() {
+		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiErrorResponse.of(
+				"FORBIDDEN", "작성자만 댓글을 수정하거나 삭제할 수 있습니다."));
+	}
+
+	@ExceptionHandler(CommentPageException.class)
+	public ResponseEntity<ApiErrorResponse> invalidCommentPage() {
+		return ResponseEntity.badRequest().body(ApiErrorResponse.of(
+				"INVALID_REQUEST", "댓글 페이지 또는 정렬 조건을 확인해 주세요."));
+	}
 
 	@ExceptionHandler(PostNotFoundException.class)
 	public ResponseEntity<ApiErrorResponse> postNotFound() {

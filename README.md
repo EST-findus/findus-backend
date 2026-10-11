@@ -248,9 +248,44 @@ Postman에서는 로그인 후 받은 Access Token을 **Authorization → Bearer
 - 삭제 시 `deleted_at`만 기록합니다. 삭제된 글은 목록·개수에서 제외되고 상세·수정·삭제 요청에 **404**를 반환합니다.
 - 다른 작성자의 수정·삭제는 **403**, 잘못된 입력·정렬은 **400**입니다. 응답의 시간은 UTC 기준입니다.
 - 본문은 일반 텍스트입니다. 프론트에서 HTML로 직접 삽입하지 않고 텍스트로 표시합니다.
-- 댓글·좋아요·첨부파일은 다음 작업에서 추가합니다.
+- 좋아요·대댓글·첨부파일은 다음 작업에서 추가합니다.
 
 DB 확인: `SELECT id, member_id, title, created_at, updated_at, deleted_at FROM findus.posts;`
+
+## 💬 댓글 API
+
+댓글 목록은 로그인 없이 조회할 수 있습니다. 작성·수정·삭제는 JWT와 CSRF가 필요하며 **댓글 작성자만 수정·삭제**할 수 있습니다. 게시글 작성자나 관리자에게 별도 삭제 권한은 부여하지 않습니다.
+
+| 기능 | 메서드·주소 | 성공 응답 |
+| --- | --- | --- |
+| 작성 | `POST /api/posts/{postId}/comments` | 201 |
+| 목록 | `GET /api/posts/{postId}/comments?page=0&size=10` | 200 |
+| 수정 | `PUT /api/posts/{postId}/comments/{commentId}` | 200 |
+| 삭제 | `DELETE /api/posts/{postId}/comments/{commentId}` | 204 |
+
+Swagger에서는 다음 순서로 테스트합니다.
+
+1. 기존 안내대로 **보안 토큰 준비 → 로그인 → Authorize**를 진행합니다.
+2. 게시글을 작성하거나 목록에서 `id`를 확인합니다. 댓글 API의 `postId`에 넣습니다.
+3. **댓글 → 댓글 작성**에서 아래 JSON을 보내고, 응답의 댓글 `id`를 확인합니다.
+4. **댓글 목록**으로 저장 여부를 확인하고, 수정·삭제의 `commentId`에 댓글 ID를 넣습니다.
+5. 삭제 후 목록·전체 개수에서 제외되는지 확인합니다. DB 행은 보존됩니다.
+
+```json
+{ "content": "도움이 되는 정보 감사합니다." }
+```
+
+- 댓글은 공백만 사용할 수 없으며 **최대 1000자**입니다. 줄바꿈은 유지합니다.
+- 목록은 기본 **작성 시간·UUID 오름차순**, 첫 페이지 0·기본 10개·최대 100개입니다.
+- 정렬 허용 필드: `createdAt`, `updatedAt`, `id` · 예: `?sort=createdAt,desc`.
+- 응답에는 댓글 내용·게시글 ID·작성자 UUID와 닉네임·UTC 작성/수정 시간이 포함됩니다. 회원 개인정보나 엔티티 전체를 반환하지 않습니다.
+- 댓글이 없으면 빈 페이지를 반환합니다. 없는 게시글·삭제된 게시글은 **404**입니다.
+- 다른 게시글에 속한 댓글 ID나 삭제된 댓글의 수정·삭제도 **404**, 다른 작성자의 변경은 **403**입니다.
+- 게시글이 삭제되면 그 댓글도 공개되지 않습니다. 댓글 행을 일괄 삭제하지는 않습니다.
+- 본문은 일반 텍스트이며, 프론트에서도 HTML로 삽입하지 않고 텍스트로 표시합니다.
+- 이번 작업에는 댓글 수·좋아요·대댓글을 포함하지 않습니다.
+
+DB 확인: `SELECT id, post_id, member_id, content, created_at, updated_at, deleted_at FROM findus.comments;`
 
 ## 📊 Prometheus·Grafana 모니터링
 

@@ -15,7 +15,7 @@ public class OpenApiConfig {
 	public OpenAPI findUsOpenApi() {
 		return new OpenAPI()
 				.info(new Info().title("FindUs API").version("v1")
-						.description("회원·인증·게시글 API를 확인하고 테스트하는 로컬 문서입니다. "
+						.description("회원·인증·게시글·댓글 API를 확인하고 테스트하는 로컬 문서입니다. "
 								+ "회원가입 → 보안 토큰 준비(GET /api/auth/csrf) → 로그인 → Authorize 순서로 진행하세요. "
 								+ "Authorize에는 로그인 응답의 accessToken만 입력합니다. "
 								+ "쓰기 요청에는 CSRF도 필요하며 Swagger가 쿠키에서 읽어 자동 전달합니다. "

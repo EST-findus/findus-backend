@@ -65,6 +65,10 @@ class SwaggerTests {
 		var result = mvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn();
 		var doc = mapper.readTree(result.getResponse().getContentAsString());
 		assertThat(doc.at("/info/title").asText()).isEqualTo("FindUs API");
+		assertThat(doc.at("/paths/~1api~1posts~1{postId}~1comments/get/summary").asText()).isEqualTo("댓글 목록");
+		assertThat(doc.at("/paths/~1api~1posts~1{postId}~1comments/post/security/0/bearerAuth").isArray()).isTrue();
+		assertThat(doc.at("/components/schemas/CommentWriteRequest/properties/content/maxLength").asInt()).isEqualTo(1000);
+
 		assertThat(doc.at("/components/securitySchemes/bearerAuth/scheme").asText()).isEqualTo("bearer");
 		assertThat(doc.at("/paths/~1api~1members~1me/get/security/0/bearerAuth").isArray()).isTrue();
 		assertThat(doc.at("/paths/~1api~1auth~1login/post/security").isMissingNode()).isTrue();
