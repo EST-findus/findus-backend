@@ -8,6 +8,7 @@ import com.findus.backend.auth.security.SecurityErrorWriter;
 import com.findus.backend.auth.service.JwtTokenService;
 import com.findus.backend.member.repository.MemberRepository;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -29,7 +30,7 @@ public class SecurityConfig {
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthProperties properties,
 			JwtTokenService tokens, AuthSessionRepository sessions, MemberRepository members,
-			SecurityErrorWriter errors) throws Exception {
+			SecurityErrorWriter errors, @Value("${springdoc.api-docs.enabled:false}") boolean docsEnabled) throws Exception {
 		var csrf = CookieCsrfTokenRepository.withHttpOnlyFalse();
 		csrf.setCookieCustomizer(cookie -> cookie.secure(properties.cookieSecure()).sameSite("Lax"));
 		http.cors(cors -> {})
@@ -42,6 +43,10 @@ public class SecurityConfig {
 				.requestCache(cache -> cache.disable())
 				.formLogin(form -> form.disable()).httpBasic(basic -> basic.disable()).logout(logout -> logout.disable())
 				.authorizeHttpRequests(auth -> {
+					// 문서가 활성화된 환경에서만 문서 조회를 공개합니다. API 쓰기 권한은 그대로 유지합니다.
+					if (docsEnabled) auth.requestMatchers(HttpMethod.GET,
+							"/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
+							"/v3/api-docs.yaml").permitAll();
 					auth
 						.requestMatchers(HttpMethod.POST, "/api/members", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/auth/csrf", "/health").permitAll()

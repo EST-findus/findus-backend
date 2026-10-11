@@ -1,0 +1,136 @@
+package com.findus.backend.common;
+
+import java.util.Map;
+import java.util.UUID;
+import jakarta.servlet.http.Cookie;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
+import tools.jackson.databind.ObjectMapper;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@SpringBootTest(properties = {
+		"springdoc.api-docs.enabled=true", "springdoc.swagger-ui.enabled=true",
+		"springdoc.swagger-ui.csrf.enabled=true", "springdoc.swagger-ui.persist-authorization=false",
+		"springdoc.swagger-ui.disable-swagger-default-url=true"
+})
+@AutoConfigureMockMvc
+@ActiveProfiles("test")
+@Testcontainers
+@DisplayName("Swagger 문서와 기존 인증 규칙 통합 테스트")
+class SwaggerTests {
+	// region 개발 DB와 분리된 임시 환경
+	@Container static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17.11-bookworm")
+			.withUsername("findus").withDatabaseName("findus");
+	@Container static final GenericContainer<?> REDIS = new GenericContainer<>("redis:7.4.11-alpine")
+			.withExposedPorts(6379).withCommand("redis-server", "--requirepass", "swagger-test-redis");
+	@DynamicPropertySource
+	static void properties(DynamicPropertyRegistry registry) {
+		registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+		registry.add("spring.datasource.username", POSTGRES::getUsername);
+		registry.add("spring.datasource.password", POSTGRES::getPassword);
+		registry.add("spring.data.redis.host", REDIS::getHost);
+		registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
+		registry.add("spring.data.redis.password", () -> "swagger-test-redis");
+	}
+	@Autowired MockMvc mvc;
+	@Autowired ObjectMapper mapper;
+	// endregion
+
+	// region 문서·화면·인증 안내
+	@Test
+	@DisplayName("로그인 없이 UI·문서·CSRF 설정을 읽을 수 있고 내부 인증 인자는 나타나지 않는다")
+	void 문서와_UI를_공개하고_내부_인자를_숨긴다() throws Exception {
+		mvc.perform(get("/swagger-ui/index.html")).andExpect(status().isOk())
+				.andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML));
+		var config = mvc.perform(get("/v3/api-docs/swagger-config")).andExpect(status().isOk()).andReturn();
+		assertThat(mapper.readTree(config.getResponse().getContentAsString()).path("persistAuthorization").asBoolean()).isFalse();
+		// CSRF 처리는 설정 JSON이 아니라 Swagger 초기화 자바스크립트에 반영됩니다.
+		var initializer = mvc.perform(get("/swagger-ui/swagger-initializer.js")).andExpect(status().isOk()).andReturn();
+		assertThat(initializer.getResponse().getContentAsString()).contains("requestInterceptor", "X-XSRF-TOKEN", "XSRF-TOKEN");
+		var result = mvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn();
+		var doc = mapper.readTree(result.getResponse().getContentAsString());
+		assertThat(doc.at("/info/title").asText()).isEqualTo("FindUs API");
+		assertThat(doc.at("/components/securitySchemes/bearerAuth/scheme").asText()).isEqualTo("bearer");
+		assertThat(doc.at("/paths/~1api~1members~1me/get/security/0/bearerAuth").isArray()).isTrue();
+		assertThat(doc.at("/paths/~1api~1auth~1login/post/security").isMissingNode()).isTrue();
+		for (String path : new String[]{"~1api~1members~1me/get", "~1api~1posts/post", "~1api~1auth~1csrf/get",
+				"~1api~1auth~1refresh/post", "~1api~1auth~1logout/post"}) {
+			assertThat(doc.at("/paths/" + path + "/parameters").isMissingNode())
+					.as("로그인 정보와 쿠키는 수동 입력 항목으로 표시하지 않습니다: %s", path).isTrue();
+		}
+		assertThat(doc.at("/components/schemas/MemberSignupRequest/properties/password/writeOnly").asBoolean()).isTrue();
+		assertThat(doc.at("/components/schemas/PostWriteRequest/properties/title/maxLength").asInt()).isEqualTo(200);
+		assertThat(doc.at("/paths/~1api~1members/post/responses/201").isMissingNode()).isFalse();
+		assertThat(doc.at("/paths/~1api~1posts/post/responses/201").isMissingNode()).isFalse();
+		assertThat(doc.at("/paths/~1api~1posts~1{id}/delete/responses/204/content").isMissingNode()).isTrue();
+		assertThat(doc.at("/paths/~1health/get/responses/200/content/text~1plain/schema/type").asText()).isEqualTo("string");
+		mvc.perform(get("/v3/api-docs.yaml")).andExpect(status().isOk());
+	}
+
+	@Test
+	@DisplayName("게시글 목록 문서에 page·size·sort와 기본값을 표시한다")
+	void 페이지_조회_입력값을_표시한다() throws Exception {
+		var result = mvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn();
+		var parameters = mapper.readTree(result.getResponse().getContentAsString()).at("/paths/~1api~1posts/get/parameters");
+		var names = new java.util.ArrayList<String>();
+		parameters.forEach(p -> names.add(p.path("name").asText()));
+		assertThat(names).containsExactlyInAnyOrder("page", "size", "sort");
+		parameters.forEach(p -> {
+			if (p.path("name").asText().equals("size")) assertThat(p.at("/schema/default").asInt()).isEqualTo(10);
+			if (p.path("name").asText().equals("page")) assertThat(p.at("/schema/default").asInt()).isZero();
+		});
+	}
+	// endregion
+
+	// region Swagger 사용 순서대로 실제 API 검증
+	@Test
+	@DisplayName("문서 공개가 JWT·CSRF 검증을 우회하지 않고 가입·로그인·게시글 CRUD가 동작한다")
+	void 문서가_있어도_인증과_CSRF가_필요하다() throws Exception {
+		String email = "swagger-" + UUID.randomUUID() + "@example.com";
+		String password = "Swagger-test123!";
+		mvc.perform(get("/api/members/me")).andExpect(status().isUnauthorized());
+		mvc.perform(post("/api/members").contentType(MediaType.APPLICATION_JSON)
+				.content(mapper.writeValueAsString(Map.of("email", email, "password", password, "name", "스웨거테스트", "nickname", "문서확인"))))
+				.andExpect(status().isCreated());
+		String loginBody = mapper.writeValueAsString(Map.of("email", email, "password", password));
+		mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(loginBody))
+				.andExpect(status().isForbidden());
+		var prepared = mvc.perform(get("/api/auth/csrf")).andExpect(status().isOk()).andReturn();
+		Cookie csrfCookie = prepared.getResponse().getCookie("XSRF-TOKEN");
+		assertThat(csrfCookie).isNotNull();
+		String csrf = csrfCookie.getValue();
+		var loggedIn = mvc.perform(post("/api/auth/login").cookie(csrfCookie).header("X-XSRF-TOKEN", csrf)
+				.contentType(MediaType.APPLICATION_JSON).content(loginBody)).andExpect(status().isOk()).andReturn();
+		String auth = "Bearer " + mapper.readTree(loggedIn.getResponse().getContentAsString()).path("accessToken").asText();
+		mvc.perform(get("/api/members/me").header("Authorization", auth)).andExpect(status().isOk()).andExpect(jsonPath("$.email").value(email));
+		String body = "{\"title\":\"문서 테스트\",\"content\":\"본문\"}";
+		mvc.perform(post("/api/posts").header("Authorization", auth).contentType(MediaType.APPLICATION_JSON).content(body))
+				.andExpect(status().isForbidden());
+		var created = mvc.perform(post("/api/posts").header("Authorization", auth).cookie(csrfCookie).header("X-XSRF-TOKEN", csrf)
+				.contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isCreated()).andReturn();
+		String id = mapper.readTree(created.getResponse().getContentAsString()).path("id").asText();
+		mvc.perform(get("/api/posts/" + id)).andExpect(status().isOk());
+		mvc.perform(get("/api/posts?page=0&size=10&sort=title,asc")).andExpect(status().isOk());
+		mvc.perform(put("/api/posts/" + id).header("Authorization", auth).cookie(csrfCookie).header("X-XSRF-TOKEN", csrf)
+				.contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isOk());
+		mvc.perform(delete("/api/posts/" + id).header("Authorization", auth).cookie(csrfCookie).header("X-XSRF-TOKEN", csrf))
+				.andExpect(status().isNoContent());
+		mvc.perform(get("/api/posts/" + id)).andExpect(status().isNotFound());
+	}
+	// endregion
+}
