@@ -41,7 +41,8 @@ class HealthTests {
 					when(redis.execute(org.mockito.ArgumentMatchers.<RedisCallback<String>>any()))
 							.thenThrow(new DataAccessResourceFailureException("테스트용 내부 Redis 오류"));
 				}
-				var result = new HealthServiceImpl(jdbc, redis).check();
+				var result = new HealthServiceImpl(jdbc, redis, new MonitoringHealthChecker(
+						new MonitoringHealthProperties(false, null, null), new tools.jackson.databind.ObjectMapper())).check();
 				assertThat(result.database()).isEqualTo(database);
 				assertThat(result.redis()).isEqualTo(redisAvailable);
 				assertThat(result.healthy()).isEqualTo(database && redisAvailable);

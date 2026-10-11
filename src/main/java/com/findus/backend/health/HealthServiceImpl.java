@@ -11,16 +11,18 @@ import org.springframework.stereotype.Service;
 public class HealthServiceImpl implements HealthService {
 	private final JdbcTemplate jdbc;
 	private final StringRedisTemplate redis;
+	private final MonitoringHealthChecker monitoring;
 
-	public HealthServiceImpl(JdbcTemplate jdbc, StringRedisTemplate redis) {
+	public HealthServiceImpl(JdbcTemplate jdbc, StringRedisTemplate redis, MonitoringHealthChecker monitoring) {
 		this.jdbc = jdbc;
 		this.redis = redis;
+		this.monitoring = monitoring;
 	}
 
 	@Override
 	public HealthStatus check() {
 		// 한 항목이 실패해도 다른 항목의 연결을 확인합니다.
-		return new HealthStatus(databaseAvailable(), redisAvailable());
+		return new HealthStatus(databaseAvailable(), redisAvailable(), monitoring.check());
 	}
 
 	private boolean databaseAvailable() {
