@@ -85,6 +85,16 @@ class AuthTests {
 	}
 	// endregion
 
+	@Test
+	@DisplayName("문서가 비활성화된 프로필에서는 로그인해도 Swagger 경로를 사용할 수 없다")
+	void 일반_프로필에서는_문서를_제공하지_않는다() throws Exception {
+		Session session = login(signup());
+		for (String path : List.of("/v3/api-docs", "/v3/api-docs.yaml", "/swagger-ui/index.html")) {
+			mvc.perform(get(path).header("Authorization", "Bearer " + session.access()))
+					.andExpect(status().isNotFound());
+		}
+	}
+
 	// region 로그인과 비밀번호·계정 보호
 	@Test
 	@DisplayName("가입 후 로그인하면 Access 응답과 HttpOnly Refresh 쿠키를 받는다")

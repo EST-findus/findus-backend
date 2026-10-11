@@ -64,3 +64,12 @@ app:
     refresh-ttl: ${JWT_REFRESH_TTL:7d}
     cookie-secure: ${AUTH_COOKIE_SECURE:true}
     allowed-origins: ${FRONTEND_ORIGIN:http://localhost:5173}
+
+# API 문서는 로컬 환경에서만 켭니다.
+springdoc:
+  # 각 API에 명시한 응답만 표시하여 관계없는 오류가 섞이지 않게 합니다.
+  override-with-generic-response: false
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

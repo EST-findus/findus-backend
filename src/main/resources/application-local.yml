@@ -39,3 +39,16 @@ management:
       # 요청 시간 분포를 수집하여 Grafana에서 느린 요청의 기준인 p95를 계산합니다.
       percentiles-histogram:
         http.server.requests: true
+
+# Swagger는 API 서버와 같은 포트에서 사용하며, 기존 인증 규칙을 유지합니다.
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+    disable-swagger-default-url: true
+    persist-authorization: false
+    csrf:
+      enabled: true
+      cookie-name: XSRF-TOKEN
+      header-name: X-XSRF-TOKEN
