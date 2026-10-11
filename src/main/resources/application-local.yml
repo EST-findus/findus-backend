@@ -9,6 +9,12 @@ spring:
 
 # 로컬 HTTP 개발에서만 Secure 쿠키를 해제합니다. 배포 시에는 HTTPS를 사용합니다.
 app:
+  # 로컬 Compose의 모니터링 서비스까지 헬스체크합니다.
+  health:
+    monitoring:
+      enabled: true
+      prometheus-url: ${PROMETHEUS_URL:http://localhost:19090}
+      grafana-url: ${GRAFANA_URL:http://localhost:13000}
   auth:
     cookie-secure: ${AUTH_COOKIE_SECURE:false}
   monitoring:

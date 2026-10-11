@@ -103,15 +103,19 @@ IntelliJ에서는 JDK·Gradle JVM을 17로 설정한 뒤 `FindUsApplication`을 
 http://localhost:18080/health
 ```
 
-아래처럼 세 줄이 모두 **`ok`**면 서버·DB·Redis 연결이 정상입니다. PostgreSQL은 `SELECT 1`, Redis는 `PING` 요청으로 실제 연결을 확인합니다.
+아래 항목이 모두 **`ok`**면 서버·DB·Redis와 로컬 모니터링 서비스 확인이 정상입니다. PostgreSQL은 `SELECT 1`, Redis는 `PING`으로 확인합니다. Prometheus는 준비 상태, Grafana는 자체 DB 연결 상태를 검사합니다.
 
 ```text
 Spring Boot: ok
 PostgreSQL: ok
 Redis: ok
+Prometheus: ok
+Grafana: ok
+PostgreSQL exporter: ok
+Redis exporter: ok
 ```
 
-로그인은 필요하지 않습니다. 연결 실패 항목은 `fail`로 표시됩니다. 모두 정상이면 HTTP **200**, 하나라도 실패하면 **503**입니다. `localhost`는 자신의 컴퓨터이며, 서버 포트를 바꿨다면 주소의 `18080`도 바꿉니다.
+로그인은 필요하지 않습니다. 확인 실패 항목은 `fail`로 표시됩니다. exporter는 외부 포트를 열지 않고 Prometheus의 최근 45초 이내 수집 결과로 확인하므로 상태 변화가 즉시 반영되지는 않습니다. Prometheus에 연결할 수 없으면 exporter도 확인할 수 없어 `fail`로 표시합니다. 모니터링 검사 항목은 `local` 프로필에서 활성화합니다. 모두 정상이면 HTTP **200**, 하나라도 실패하면 **503**입니다. `localhost`는 자신의 컴퓨터이며, 서버 포트를 바꿨다면 주소의 `18080`도 바꿉니다.
 
 ## 7️⃣ 회원가입 확인하기
 
@@ -181,7 +185,7 @@ docker compose down
 - 회원 API: `POST /api/members` · `GET /api/members/me`
 - 인증 API: `GET /api/auth/csrf` · `POST /api/auth/login` · `/api/auth/refresh` · `/api/auth/logout`
 - Access 15분 · Refresh 7일 · 재발급 시 Refresh 교체 · 로그아웃 시 해당 로그인 세션 즉시 차단
-- 연결 상태 확인: `GET /health` · 세 줄의 일반 텍스트 (`text/plain`) · 정상 200 / 연결 실패 503
+- 연결 상태 확인: `GET /health` · 서비스별 일반 텍스트 (`text/plain`) · 정상 200 / 연결 실패 503
 - React 기본 허용 주소: `http://localhost:5173` · 쿠키 요청은 `credentials: 'include'`
 - HTTPS 배포 시 `AUTH_COOKIE_SECURE=true` · 다른 사이트에 배포하면 쿠키 정책 추가 검토
 - `.env`·개인 IDE 설정·빌드 결과는 Git에서 제외합니다. 적용된 Flyway SQL은 수정하지 않습니다.
@@ -302,3 +306,5 @@ curl.exe -u prometheus http://localhost:19081/actuator/prometheus
 **JVM 상세 화면:** [FindUs JVM 상세](http://localhost:13000/d/findus-jvm)에서 힙 사용률·사용/확보/최대 용량, 힙 외·버퍼 메모리, GC 정지 시간·횟수, 객체 할당·승격, GC 후 생존 메모리, 스레드 상태, 클래스 수, 실행 시간을 확인합니다. 추가 라이브러리 없이 Actuator가 수집하는 지표를 사용합니다. 패널 제목 옆 설명에서 용어를 확인할 수 있습니다.
 
 메모리가 증가했다가 GC 후 감소하는 것은 정상일 수 있습니다. 비슷한 요청량에서 GC 후에도 남는 메모리가 지속적으로 늘고 응답이 느려지는지 함께 보세요. GC 횟수가 많다는 사실만으로 장애는 아니며 정지 시간과 응답 시간을 함께 확인합니다. 스레드의 대기 상태도 정상적인 유휴 상태일 수 있습니다. GC가 아직 발생하지 않았거나 필요한 수집 표본이 부족하면 일부 패널은 0 또는 값 없음으로 표시됩니다. 이 화면은 메모리 누수나 스레드 교착 상태를 확정 진단하는 도구는 아닙니다.
+
+**Grafana 폴더가 비어 있을 때:** 브랜치 전환 등으로 마운트한 폴더가 바뀌면 컨테이너가 현재 파일을 읽지 못할 수 있습니다. `docker compose up -d --force-recreate --no-deps grafana`로 Grafana만 다시 만들고 화면을 새로고침하세요. 기존 데이터 볼륨은 유지됩니다. 대시보드 등록 상태는 `/health`의 Grafana 응답 여부와 별도로 확인합니다.
