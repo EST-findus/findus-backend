@@ -1,0 +1,23 @@
+# 15초마다 Spring Boot 메트릭을 읽습니다.
+global:
+  scrape_interval: 15s
+  scrape_timeout: 5s
+
+scrape_configs:
+  - job_name: findus-backend
+    metrics_path: /actuator/prometheus
+    basic_auth:
+      username: prometheus
+      # 실제 비밀번호는 Git에 올리지 않고 Docker secrets 파일에서 읽습니다.
+      password_file: /run/secrets/prometheus_password
+    static_configs:
+      - targets: ["host.docker.internal:19081"]
+
+  # exporter 실행 상태(up)와 실제 DB 연결 상태(pg_up·redis_up)는 별도로 확인합니다.
+  - job_name: findus-postgres
+    static_configs:
+      - targets: ["postgres-exporter:19187"]
+
+  - job_name: findus-redis
+    static_configs:
+      - targets: ["redis-exporter:19121"]

@@ -1,0 +1,748 @@
+{
+  "uid": "findus-jvm",
+  "title": "FindUs JVM 상세",
+  "description": "Java 17의 힙·힙 외 메모리·GC 정지·스레드·클래스 지표입니다. 수치 하나로 장애를 판단하지 않고 요청량과 응답 시간을 함께 확인합니다.",
+  "tags": [
+    "FindUs",
+    "JVM"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "editable": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "힙 메모리 사용률",
+      "description": "사용 중인 힙 / 보고된 최대 힙 용량입니다. 일시적으로 높아져도 GC 후 낮아질 수 있으므로 지속 시간과 GC를 함께 봅니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "sum(jvm_memory_used_bytes{application=\"findus-backend\",job=\"findus-backend\",area=\"heap\"}) / sum(jvm_memory_max_bytes{application=\"findus-backend\",job=\"findus-backend\",area=\"heap\"} > 0)",
+          "legendFormat": "사용률",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "힙 메모리 사용·확보·최대 용량",
+      "description": "사용은 객체가 쓰는 공간, 확보는 JVM이 현재 확보한 공간, 최대는 확장 가능한 한도입니다. 한도가 미정인 풀의 -1 값은 합산하지 않습니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "expr": "sum(jvm_memory_used_bytes{application=\"findus-backend\",job=\"findus-backend\",area=\"heap\"})",
+          "legendFormat": "사용",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(jvm_memory_committed_bytes{application=\"findus-backend\",job=\"findus-backend\",area=\"heap\"})",
+          "legendFormat": "확보",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(jvm_memory_max_bytes{application=\"findus-backend\",job=\"findus-backend\",area=\"heap\"} > 0)",
+          "legendFormat": "최대",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "힙 외 메모리",
+      "description": "Metaspace·코드 캐시 등 객체 힙 외 메모리의 사용·확보 용량입니다. JVM 전체 프로세스 메모리와 같은 값은 아닙니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(jvm_memory_used_bytes{application=\"findus-backend\",job=\"findus-backend\",area=\"nonheap\"})",
+          "legendFormat": "사용",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(jvm_memory_committed_bytes{application=\"findus-backend\",job=\"findus-backend\",area=\"nonheap\"})",
+          "legendFormat": "확보",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "메모리 풀별 사용량",
+      "description": "Eden·Survivor·Old Gen·Metaspace 등 풀별 사용량입니다. 표시되는 풀 이름은 실행 중인 GC 종류에 따라 달라집니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "targets": [
+        {
+          "expr": "jvm_memory_used_bytes{application=\"findus-backend\",job=\"findus-backend\"}",
+          "legendFormat": "{{id}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "직접·매핑 버퍼 메모리",
+      "description": "Direct·Mapped 버퍼의 사용량입니다. 힙 그래프만으로 보이지 않는 버퍼 메모리를 확인합니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "expr": "jvm_buffer_memory_used_bytes{application=\"findus-backend\",job=\"findus-backend\"}",
+          "legendFormat": "{{id}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "GC 정지 시간 비율",
+      "description": "최근 5분의 GC 정지 누적 시간을 관측 시간으로 나눈 비율입니다. GC의 CPU 사용률 또는 모든 동시 GC 작업 시간을 뜻하지 않습니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(jvm_gc_pause_seconds_sum{application=\"findus-backend\",job=\"findus-backend\"}[5m])) or vector(0)",
+          "legendFormat": "정지 비율",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "최근 5분 GC 횟수",
+      "description": "최근 5분 동안 관측한 GC 정지 횟수의 추정값입니다. 새 서버에서 아직 GC 이벤트가 없으면 0으로 표시합니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(jvm_gc_pause_seconds_count{application=\"findus-backend\",job=\"findus-backend\"}[5m])) or vector(0)",
+          "legendFormat": "GC 횟수",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "최근 최대 GC 정지 시간",
+      "description": "Micrometer의 최근 집계 구간 내 최대 GC 정지 시간입니다. 서버 시작 이후의 전체 최대값은 아니며 이벤트가 없으면 0 또는 값 없음으로 표시됩니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "targets": [
+        {
+          "expr": "jvm_gc_pause_seconds_max{application=\"findus-backend\",job=\"findus-backend\"}",
+          "legendFormat": "{{action}} / {{cause}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "초당 객체 메모리 할당량",
+      "description": "GC 알림으로 추정한 객체 메모리 할당량입니다. 값이 크면 객체 생성이 많다는 뜻이며, 이것만으로 메모리 누수는 아닙니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(jvm_gc_memory_allocated_bytes_total{application=\"findus-backend\",job=\"findus-backend\"}[5m])) or vector(0)",
+          "legendFormat": "할당",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "title": "초당 장기 생존 영역 승격량",
+      "description": "GC 시 오래 살아남는 객체 영역으로 승격된 메모리의 초당 추정량입니다. 지원하는 GC에서만 값이 제공됩니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(jvm_gc_memory_promoted_bytes_total{application=\"findus-backend\",job=\"findus-backend\"}[5m])) or vector(0)",
+          "legendFormat": "승격",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "GC 후 장기 생존 메모리",
+      "description": "GC 후 장기 생존 객체 영역의 크기입니다. 전체 힙 사용량과 다르며 GC 종류와 발생 시점에 따라 갱신됩니다. 초기 0은 아직 측정되지 않은 값일 수 있습니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "targets": [
+        {
+          "expr": "jvm_gc_live_data_size_bytes{application=\"findus-backend\",job=\"findus-backend\"}",
+          "legendFormat": "GC 후 생존 메모리",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "JVM 스레드 수",
+      "description": "현재 살아 있는 스레드·백그라운드 데몬 스레드·실행 이후 최고 스레드 수입니다. 요청 수와 같지 않습니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "targets": [
+        {
+          "expr": "jvm_threads_live_threads{application=\"findus-backend\",job=\"findus-backend\"}",
+          "legendFormat": "현재",
+          "refId": "A"
+        },
+        {
+          "expr": "jvm_threads_daemon_threads{application=\"findus-backend\",job=\"findus-backend\"}",
+          "legendFormat": "데몬",
+          "refId": "B"
+        },
+        {
+          "expr": "jvm_threads_peak_threads{application=\"findus-backend\",job=\"findus-backend\"}",
+          "legendFormat": "최고",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 13,
+      "title": "상태별 스레드 수",
+      "description": "RUNNABLE은 실행 가능, BLOCKED는 모니터 잠금 대기, WAITING·TIMED_WAITING은 대기 상태입니다. 대기 스레드가 있다는 사실 자체는 정상입니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 48
+      },
+      "targets": [
+        {
+          "expr": "jvm_threads_states_threads{application=\"findus-backend\",job=\"findus-backend\"}",
+          "legendFormat": "{{state}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "title": "현재 로드된 클래스 수",
+      "description": "JVM에 현재 로드된 Java 클래스 수입니다. 서버 초기화 중 증가하는 것은 자연스럽습니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 48
+      },
+      "targets": [
+        {
+          "expr": "jvm_classes_loaded_classes{application=\"findus-backend\",job=\"findus-backend\"}",
+          "legendFormat": "로드된 클래스",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 15,
+      "title": "최근 5분 해제된 클래스 수",
+      "description": "최근 5분 동안 클래스 로더에서 해제된 클래스 수의 추정값입니다. 일반 실행에서 0인 것도 정상입니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 56
+      },
+      "targets": [
+        {
+          "expr": "increase(jvm_classes_unloaded_classes_total{application=\"findus-backend\",job=\"findus-backend\"}[5m])",
+          "legendFormat": "해제된 클래스",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    },
+    {
+      "id": 16,
+      "title": "JVM 실행 시간",
+      "description": "Java 프로세스 시작 이후 지난 시간입니다. 갑자기 낮아지면 서버 재시작 여부를 확인합니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 56
+      },
+      "targets": [
+        {
+          "expr": "process_uptime_seconds{application=\"findus-backend\",job=\"findus-backend\"}",
+          "legendFormat": "실행 시간",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      }
+    }
+  ],
+  "links": [
+    {
+      "title": "백엔드",
+      "type": "link",
+      "url": "/d/findus-backend",
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "JVM 상세",
+      "type": "link",
+      "url": "/d/findus-jvm",
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "PostgreSQL",
+      "type": "link",
+      "url": "/d/findus-postgres",
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "Redis",
+      "type": "link",
+      "url": "/d/findus-redis",
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "요청·DB 트랜잭션",
+      "type": "link",
+      "url": "/d/findus-transactions",
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    }
+  ]
+}

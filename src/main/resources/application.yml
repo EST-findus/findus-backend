@@ -42,6 +42,19 @@ spring:
 server:
   port: ${SERVER_PORT:18080}
 
+# 메트릭 수집 경로는 local 프로필에서만 활성화합니다.
+management:
+  endpoints:
+    access:
+      default: none
+    jmx:
+      exposure:
+        exclude: "*"
+  prometheus:
+    metrics:
+      export:
+        enabled: false
+
 # 토큰 서명 키는 .env 또는 배포 환경변수에서만 가져옵니다.
 app:
   auth:

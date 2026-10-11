@@ -25,7 +25,7 @@ cd findus-backend
 
 ## 3️⃣ 개인 설정 준비하기
 
-**처음 실행할 때만** `.env.example`을 `.env`로 복사합니다. 기존 `.env`가 있으면 덮어쓰지 마세요. 세 항목이 이미 설정되어 있다면 4단계로 넘어갑니다.
+**처음 실행할 때만** `.env.example`을 `.env`로 복사합니다. 기존 `.env`가 있으면 덮어쓰지 마세요. 기존 설정이 있다면 모니터링 비밀번호 두 항목도 확인한 뒤 4단계로 넘어갑니다.
 
 **🍎 macOS**
 
@@ -49,17 +49,19 @@ $rng.GetBytes($bytes)
 $rng.Dispose()
 ```
 
-`.env`를 편집기로 열어 **아래 세 항목의 예시 값**을 바꾸고 저장합니다.
+`.env`를 편집기로 열어 **아래 다섯 항목의 예시 값**을 바꾸고 저장합니다.
 
 | 항목 | 넣을 값 |
 | --- | --- |
 | `POSTGRES_PASSWORD` | 본인 로컬 DB 비밀번호 · 영문·숫자 조합 권장 |
 | `REDIS_PASSWORD` | 본인 로컬 Redis 비밀번호 · 영문·숫자 조합 권장 |
 | `JWT_SECRET` | 바로 위 명령이 출력한 무작위 키 |
+| `PROMETHEUS_PASSWORD` | Prometheus 수집 비밀번호 · 24자 이상 영문·숫자 |
+| `GRAFANA_ADMIN_PASSWORD` | Grafana 최초 관리자 비밀번호 · 긴 무작위 영문·숫자 |
 
 `java -version`에 **17**이 표시되어야 합니다. `.env`는 UTF-8로 저장하고 `KEY=value` 형식을 사용합니다. 실제 비밀번호·키는 Git에 올리지 않습니다. 기존 DB의 비밀번호는 `.env` 수정만으로 바뀌지 않습니다.
 
-## 4️⃣ DB와 Redis 켜기
+## 4️⃣ DB·Redis·모니터링 켜기
 
 `build.gradle`이 있는 폴더에서 실행하세요.
 
@@ -68,7 +70,7 @@ docker compose up -d --wait
 docker compose ps
 ```
 
-PostgreSQL과 Redis가 모두 **healthy**면 준비 완료입니다.
+PostgreSQL·Redis·Prometheus·Grafana와 수집용 exporter 두 개가 실행되면 컨테이너 준비 완료입니다. 메트릭 수집은 다음 단계에서 Spring 서버를 켜야 시작됩니다.
 
 ## 5️⃣ 서버 켜기
 
@@ -230,3 +232,58 @@ Postman에서는 로그인 후 받은 Access Token을 **Authorization → Bearer
 - 댓글·좋아요·첨부파일은 다음 작업에서 추가합니다.
 
 DB 확인: `SELECT id, member_id, title, created_at, updated_at, deleted_at FROM findus.posts;`
+
+## 📊 Prometheus·Grafana 모니터링
+
+**흐름:** Spring Boot가 메트릭 제공 → Prometheus가 15초마다 수집 → Grafana가 그래프로 표시합니다. 로컬 개발용 구성이며, `local` 외 프로필에서는 메트릭 경로를 활성화하지 않습니다.
+
+1. 기존 `.env`에 `PROMETHEUS_PASSWORD`와 `GRAFANA_ADMIN_PASSWORD`를 추가합니다. `.env.example`의 설명을 참고하세요. 기존 DB 비밀번호·JWT 키는 바꾸지 않습니다.
+2. `docker compose config --quiet`로 설정을 검사한 뒤 `docker compose up -d --wait`를 실행합니다.
+3. IntelliJ 또는 위의 Gradle 명령으로 **Spring 서버도 실행**합니다. API는 18080, 메트릭은 별도 19081 포트입니다.
+4. [Prometheus 수집 상태](http://localhost:19090/targets)에서 `findus-backend`가 **UP**인지 확인합니다. 서버가 꺼져 있으면 **DOWN**입니다.
+5. [Grafana](http://localhost:13000)에 `admin`과 `.env`의 `GRAFANA_ADMIN_PASSWORD`로 로그인합니다.
+6. **Dashboards → FindUs**에서 백엔드·JVM 상세·PostgreSQL·Redis·요청 및 DB 트랜잭션 대시보드를 선택합니다. 데이터 소스와 대시보드 5개는 자동 등록됩니다.
+7. `http://localhost:18080/api/posts`를 여러 번 호출하고 약 30초 후 요청 수 그래프를 확인합니다. 응답 시간 p95는 요청이 적으면 값이 없거나 불안정할 수 있습니다.
+
+| 항목 | 주소·설명 |
+| --- | --- |
+| 기존 헬스체크 | `http://localhost:18080/health` · DB·Redis 연결 확인 |
+| Spring 메트릭 | `http://localhost:19081/actuator/prometheus` · 수집 계정 인증 필요 |
+| Prometheus | `http://localhost:19090` · 메트릭 수집·검색 |
+| Grafana | `http://localhost:13000` · 그래프·대시보드 |
+
+대시보드는 수집 상태, Java 프로세스 CPU·힙 메모리, 요청 수·응답 시간 p95·5xx 오류 수, Hikari DB 연결 수를 보여줍니다. PostgreSQL·Redis exporter가 내부 네트워크에서 서버 통계를 추가 수집합니다. 총 6개 컨테이너가 실행됩니다. PostgreSQL의 커밋·롤백 수에는 exporter 등 전체 DB 활동이 포함되며, API 요청 수 또는 Spring 메서드별 트랜잭션 수와 같은 값이 아닙니다.
+
+**접속 계정 구분**
+
+| 주소 | 사용자 이름 | 비밀번호 |
+| --- | --- | --- |
+| `19081/actuator/prometheus` · Spring 메트릭 | `prometheus` | `.env`의 `PROMETHEUS_PASSWORD` |
+| `19090` · Prometheus 화면 | 없음 | 현재 구성은 로그인 없이 접속 |
+| `13000` · Grafana 화면 | `admin` | `.env`의 `GRAFANA_ADMIN_PASSWORD` |
+
+Prometheus가 계정을 필수로 요구하는 것은 아닙니다. 여기서는 Spring 메트릭 제공 경로에 수집 전용 Basic 인증을 적용했습니다.
+
+**메트릭 인증하기** — 일반 브라우저에서는 인증 창에 아이디 `prometheus`와 `.env`의 `PROMETHEUS_PASSWORD`를 입력합니다. 내장 브라우저가 인증 창을 지원하지 않으면 아래 명령 또는 Postman의 Authorization → Basic Auth를 사용합니다. 비밀번호를 URL에 붙이지 않습니다. JSON으로 회원 로그인 오류가 계속 보이면 IntelliJ에서 Gradle을 새로고침하고 Spring 서버를 재시작합니다.
+
+**메트릭을 터미널에서 확인하기** — 비밀번호를 명령에 직접 적지 않으면 입력을 요청합니다. 아이디는 `prometheus`이고 비밀번호는 `.env`의 `PROMETHEUS_PASSWORD`입니다.
+
+🍎 macOS:
+```sh
+curl -u prometheus http://localhost:19081/actuator/prometheus
+```
+
+🪟 Windows PowerShell:
+```powershell
+curl.exe -u prometheus http://localhost:19081/actuator/prometheus
+```
+
+**문제 확인:** `docker compose ps`, `docker compose logs --tail=50 prometheus grafana`를 사용합니다. 수집 오류가 401이면 비밀번호 일치 여부, 연결 거부라면 Spring 실행과 19081 포트를 확인하세요. 비밀번호 변경 후 Spring을 재시작하고 `docker compose up -d --force-recreate prometheus`로 수집 컨테이너를 다시 만듭니다.
+
+컨테이너의 `host.docker.internal`은 Mac·Windows Docker Desktop에서 PC의 Spring 서버를 가리킵니다. Grafana는 내부 주소 `http://prometheus:19090`으로 접속합니다. Compose의 서비스 이름이 컨테이너 간 주소가 됩니다.
+
+메트릭은 최대 7일·512MB를 기준으로 보관합니다. 실제 수집 데이터와 Grafana 계정은 Docker 볼륨에 저장되어 Git에 올라가지 않습니다. `docker compose down`은 데이터를 보존하지만 **`down -v`는 DB·Redis·모니터링 데이터를 모두 삭제**합니다. Grafana 계정이 만들어진 후에는 `.env` 변경만으로 기존 로그인 비밀번호가 바뀌지 않으므로 Grafana 화면에서 변경하세요. 공유 대시보드는 `monitoring/grafana/dashboards/`의 JSON 파일에서 수정합니다. Prometheus Targets에서 `findus-backend`, `findus-postgres`, `findus-redis`가 모두 UP인지 확인하세요. exporter의 UP은 수집 프로그램 상태이고, 실제 DB·Redis 연결은 `pg_up`, `redis_up` 값이 1인지 확인합니다.
+
+**JVM 상세 화면:** [FindUs JVM 상세](http://localhost:13000/d/findus-jvm)에서 힙 사용률·사용/확보/최대 용량, 힙 외·버퍼 메모리, GC 정지 시간·횟수, 객체 할당·승격, GC 후 생존 메모리, 스레드 상태, 클래스 수, 실행 시간을 확인합니다. 추가 라이브러리 없이 Actuator가 수집하는 지표를 사용합니다. 패널 제목 옆 설명에서 용어를 확인할 수 있습니다.
+
+메모리가 증가했다가 GC 후 감소하는 것은 정상일 수 있습니다. 비슷한 요청량에서 GC 후에도 남는 메모리가 지속적으로 늘고 응답이 느려지는지 함께 보세요. GC 횟수가 많다는 사실만으로 장애는 아니며 정지 시간과 응답 시간을 함께 확인합니다. 스레드의 대기 상태도 정상적인 유휴 상태일 수 있습니다. GC가 아직 발생하지 않았거나 필요한 수집 표본이 부족하면 일부 패널은 0 또는 값 없음으로 표시됩니다. 이 화면은 메모리 누수나 스레드 교착 상태를 확정 진단하는 도구는 아닙니다.

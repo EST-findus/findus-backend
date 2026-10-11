@@ -11,3 +11,31 @@ spring:
 app:
   auth:
     cookie-secure: ${AUTH_COOKIE_SECURE:false}
+  monitoring:
+    enabled: true
+    password: ${PROMETHEUS_PASSWORD}
+
+# API 포트와 메트릭 포트를 구분합니다. Prometheus가 이 포트에 인증 후 접속합니다.
+management:
+  server:
+    port: 19081
+  endpoints:
+    web:
+      exposure:
+        include: prometheus
+      discovery:
+        enabled: false
+  endpoint:
+    prometheus:
+      access: read-only
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      application: findus-backend
+    distribution:
+      # 요청 시간 분포를 수집하여 Grafana에서 느린 요청의 기준인 p95를 계산합니다.
+      percentiles-histogram:
+        http.server.requests: true
