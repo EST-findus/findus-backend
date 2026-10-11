@@ -27,6 +27,11 @@ spring:
     init:
       mode: never
   data:
+    # 게시글 목록은 기본 10개, 최대 100개까지 조회합니다.
+    web:
+      pageable:
+        default-page-size: 10
+        max-page-size: 100
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:16379}

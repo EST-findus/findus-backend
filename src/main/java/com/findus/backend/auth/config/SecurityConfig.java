@@ -45,6 +45,8 @@ public class SecurityConfig {
 					auth
 						.requestMatchers(HttpMethod.POST, "/api/members", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/auth/csrf", "/health").permitAll()
+						// 게시글 조회만 공개하며 POST·PUT·DELETE는 아래 인증 규칙을 적용합니다.
+						.requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/*").permitAll()
 						.requestMatchers("/api/admin/**").hasRole("ADMIN")
 						.anyRequest().authenticated();
 				})
@@ -62,7 +64,7 @@ public class SecurityConfig {
 	public CorsConfigurationSource corsConfigurationSource(AuthProperties properties) {
 		var config = new CorsConfiguration();
 		config.setAllowedOrigins(properties.allowedOrigins());
-		config.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+		config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
 		config.setAllowedHeaders(List.of("Content-Type", "Authorization", "X-XSRF-TOKEN"));
 		config.setAllowCredentials(true);
 		var source = new UrlBasedCorsConfigurationSource();

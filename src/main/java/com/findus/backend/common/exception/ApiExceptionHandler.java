@@ -2,6 +2,10 @@ package com.findus.backend.common.exception;
 
 import com.findus.backend.member.exception.DuplicateEmailException;
 import com.findus.backend.auth.exception.AuthException;
+import com.findus.backend.post.exception.PostForbiddenException;
+import com.findus.backend.post.exception.PostNotFoundException;
+import com.findus.backend.post.exception.PostPageException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.dao.DataAccessResourceFailureException;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -14,6 +18,30 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+	@ExceptionHandler(PostNotFoundException.class)
+	public ResponseEntity<ApiErrorResponse> postNotFound() {
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiErrorResponse.of(
+				"POST_NOT_FOUND", "게시글을 찾을 수 없습니다."));
+	}
+
+	@ExceptionHandler(PostForbiddenException.class)
+	public ResponseEntity<ApiErrorResponse> postForbidden() {
+		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiErrorResponse.of(
+				"FORBIDDEN", "작성자만 게시글을 수정하거나 삭제할 수 있습니다."));
+	}
+
+	@ExceptionHandler(PostPageException.class)
+	public ResponseEntity<ApiErrorResponse> invalidPage() {
+		return ResponseEntity.badRequest().body(ApiErrorResponse.of(
+				"INVALID_REQUEST", "페이지 또는 정렬 조건을 확인해 주세요."));
+	}
+
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	public ResponseEntity<ApiErrorResponse> invalidParameter() {
+		return ResponseEntity.badRequest().body(ApiErrorResponse.of(
+				"INVALID_REQUEST", "요청 주소와 매개변수 형식을 확인해 주세요."));
+	}
 
 	@ExceptionHandler(AuthException.class)
 	public ResponseEntity<ApiErrorResponse> unauthorized() {
