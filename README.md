@@ -199,3 +199,34 @@ async function login(email, password) {
 ```
 
 새로고침 후에는 CSRF를 준비하고 `/api/auth/refresh`로 Access Token을 다시 받습니다. 재발급은 동시에 여러 번 호출하지 마세요. 재발급도 401이면 로그인 화면으로 이동합니다. 헬스체크가 정상이어도 회원가입·로그인 동작은 별도로 테스트해야 합니다.
+
+## 📝 게시글 API
+
+목록·상세 조회는 공개이며, 작성·수정·삭제는 로그인이 필요합니다. **작성자만 수정·삭제**할 수 있습니다.
+
+| 기능 | 메서드·주소 | 성공 응답 |
+| --- | --- | --- |
+| 작성 | `POST /api/posts` | 201 |
+| 목록 | `GET /api/posts?page=0&size=10` | 200 |
+| 상세 | `GET /api/posts/{id}` | 200 |
+| 수정 | `PUT /api/posts/{id}` | 200 |
+| 삭제 | `DELETE /api/posts/{id}` | 204 |
+
+작성·수정 시 아래 JSON을 사용합니다. 제목은 최대 200자, 본문은 최대 10000자입니다. 작성자는 로그인 정보에서 자동으로 결정됩니다. 수정은 제목·본문 모두 보냅니다.
+
+```json
+{ "title": "첫 게시글", "content": "게시글 내용입니다." }
+```
+
+Postman에서는 로그인 후 받은 Access Token을 **Authorization → Bearer Token**에 넣습니다. 작성·수정·삭제 전에 `/api/auth/csrf`를 호출하고 응답의 `headerName`·`token`을 요청 헤더로 추가합니다. Postman의 쿠키 저장 기능도 켜 두세요. React도 동일한 헤더와 `credentials: 'include'`를 사용합니다.
+
+- 첫 페이지는 **0**, 기본 10개·최대 100개입니다. `size`가 100보다 크면 100으로 제한합니다.
+- 기본 정렬은 **작성 시간 내림차순**, 같은 시간이면 UUID 내림차순입니다. 새 글이 추가되면 페이지 위치는 달라질 수 있습니다.
+- 정렬 예: `?sort=title,asc` · 허용 필드: `createdAt`, `updatedAt`, `title`, `id`
+- 목록은 본문 없이 `content`, `page`, `size`, `totalElements`, `totalPages`, `hasNext`, `hasPrevious`를 반환합니다.
+- 삭제 시 `deleted_at`만 기록합니다. 삭제된 글은 목록·개수에서 제외되고 상세·수정·삭제 요청에 **404**를 반환합니다.
+- 다른 작성자의 수정·삭제는 **403**, 잘못된 입력·정렬은 **400**입니다. 응답의 시간은 UTC 기준입니다.
+- 본문은 일반 텍스트입니다. 프론트에서 HTML로 직접 삽입하지 않고 텍스트로 표시합니다.
+- 댓글·좋아요·첨부파일은 다음 작업에서 추가합니다.
+
+DB 확인: `SELECT id, member_id, title, created_at, updated_at, deleted_at FROM findus.posts;`
