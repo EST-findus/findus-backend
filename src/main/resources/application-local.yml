@@ -9,6 +9,11 @@ spring:
 
 # 로컬 HTTP 개발에서만 Secure 쿠키를 해제합니다. 배포 시에는 HTTPS를 사용합니다.
 app:
+  # 시작 시 갱신할 데이터와 직접 요청해 유지할 데이터를 구분합니다.
+  dummy:
+    enabled: ${DUMMY_DATA_ENABLED:true}
+    startup-enabled: ${DUMMY_STARTUP_ENABLED:true}
+    password: ${DUMMY_PASSWORD:Dummy-test123!}
   # 로컬 Compose의 모니터링 서비스까지 헬스체크합니다.
   health:
     monitoring:

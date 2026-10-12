@@ -1,6 +1,8 @@
 package com.findus.backend.auth.config;
 
 import java.util.List;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 
 import com.findus.backend.auth.repository.AuthSessionRepository;
 import com.findus.backend.auth.security.JwtAuthenticationFilter;
@@ -30,7 +32,7 @@ public class SecurityConfig {
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthProperties properties,
 			JwtTokenService tokens, AuthSessionRepository sessions, MemberRepository members,
-			SecurityErrorWriter errors, @Value("${springdoc.api-docs.enabled:false}") boolean docsEnabled) throws Exception {
+			SecurityErrorWriter errors, @Value("${springdoc.api-docs.enabled:false}") boolean docsEnabled, Environment environment) throws Exception {
 		var csrf = CookieCsrfTokenRepository.withHttpOnlyFalse();
 		csrf.setCookieCustomizer(cookie -> cookie.secure(properties.cookieSecure()).sameSite("Lax"));
 		http.cors(cors -> {})
@@ -43,7 +45,12 @@ public class SecurityConfig {
 				.requestCache(cache -> cache.disable())
 				.formLogin(form -> form.disable()).httpBasic(basic -> basic.disable()).logout(logout -> logout.disable())
 				.authorizeHttpRequests(auth -> {
-					// 문서가 활성화된 환경에서만 문서 조회를 공개합니다. API 쓰기 권한은 그대로 유지합니다.
+					// 더미 생성은 로컬에서 기능을 켠 경우만 공개하며 CSRF 검증은 유지합니다.
+                    if (environment.acceptsProfiles(Profiles.of("local"))
+                            && environment.getProperty("app.dummy.enabled", Boolean.class, false)) {
+                        auth.requestMatchers(HttpMethod.POST, "/api/dev/dummy-data").permitAll();
+                    }
+                    // 문서가 활성화된 환경에서만 문서 조회를 공개합니다. API 쓰기 권한은 그대로 유지합니다.
 					if (docsEnabled) auth.requestMatchers(HttpMethod.GET,
 							"/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
 							"/v3/api-docs.yaml").permitAll();

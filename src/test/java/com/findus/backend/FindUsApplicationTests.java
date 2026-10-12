@@ -78,6 +78,14 @@ class FindUsApplicationTests {
 	@Autowired
 	Flyway flyway;
 
+	@Autowired org.springframework.context.ApplicationContext context;
+
+	@Test
+	void 로컬이_아니면_더미_기능이_등록되지_않는다() {
+		assertThat(context.getBeansOfType(com.findus.backend.dev.service.DummyDataService.class)).isEmpty();
+		assertThat(context.getBeansOfType(com.findus.backend.dev.controller.DummyDataController.class)).isEmpty();
+	}
+
 	// endregion
 
 	// region PostgreSQL·JPA 읽기와 쓰기
@@ -106,7 +114,7 @@ class FindUsApplicationTests {
 		assertThat(jdbcTemplate.queryForObject(
 				"SELECT count(*) FROM information_schema.tables WHERE table_schema = 'findus' AND table_name = 'posts'",
 				Integer.class)).isEqualTo(1);
-		assertThat(flyway.info().current().getVersion().toString()).isEqualTo("4");
+		assertThat(flyway.info().current().getVersion().toString()).isEqualTo("5");
 		// 다시 실행해도 이미 적용한 마이그레이션 수는 0이어야 합니다.
 		flyway.validate();
 		assertThat(flyway.migrate().migrationsExecuted).isZero();
@@ -126,12 +134,12 @@ class FindUsApplicationTests {
 						"--spring.data.redis.host=" + REDIS.getHost(),
 						"--spring.data.redis.port=" + REDIS.getMappedPort(6379),
 						"--spring.data.redis.password=" + REDIS_PASSWORD)) {
-			// V1~V4를 다시 적용하지 않고 기존 public 이력 네 건을 사용하는지 확인합니다.
+			// V1~V5를 다시 적용하지 않고 기존 public 이력 다섯 건을 사용하는지 확인합니다.
 			assertThat(restarted.getBean(Flyway.class).info().current().getVersion().toString())
-					.isEqualTo("4");
+					.isEqualTo("5");
 			assertThat(restarted.getBean(JdbcTemplate.class).queryForObject(
 					"SELECT count(*) FROM public.flyway_schema_history WHERE success", Integer.class))
-					.isEqualTo(4);
+					.isEqualTo(5);
 		}
 	}
 
