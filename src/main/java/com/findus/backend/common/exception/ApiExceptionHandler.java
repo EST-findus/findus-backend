@@ -21,6 +21,12 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    @ExceptionHandler(com.findus.backend.missing.exception.MissingSyncException.class)
+    public ResponseEntity<ApiErrorResponse> missingSyncFailed() {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiErrorResponse.of(
+                "SYNC_UNAVAILABLE", "실종자 수집 설정 또는 실행 상태를 확인하세요."));
+    }
+
 
 	@ExceptionHandler(CommentNotFoundException.class)
 	public ResponseEntity<ApiErrorResponse> commentNotFound() {
