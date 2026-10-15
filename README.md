@@ -371,3 +371,41 @@ curl.exe -u prometheus http://localhost:19081/actuator/prometheus
 모든 더미 회원은 USER입니다. 로그인 후 Authorize를 하면 본인이 작성한 게시글·댓글을 수정·삭제할 수 있습니다.
 
 필요하면 `.env`에 `DUMMY_STARTUP_ENABLED=false`를 추가해 시작 갱신만 끄거나, `DUMMY_DATA_ENABLED=false`로 기능 전체를 끕니다. `DUMMY_PASSWORD`는 신규 생성·시작 갱신에만 반영되고 이미 만든 고정 회원의 비밀번호는 바뀌지 않습니다. 생성은 한 트랜잭션으로 처리해 중간 실패 시 모두 롤백하며, 동시 요청도 중복 생성하지 않습니다.
+
+## 🔄 안전Dream 실종자 수집·동기화
+
+Spring Batch가 전체 공개 데이터를 100건씩 조회해 신규 정보를 추가하고 변경된 정보를 갱신합니다. 경찰청 식별자 `sourceId`는 중복되지 않고, 우리 DB의 `id`는 UUID입니다. 기존 회원·게시글·댓글과 별도 테이블을 사용합니다.
+
+**1.** `.env`에 `SAFE182_ESNTL_ID`, `SAFE182_AUTH_KEY`를 설정하고 서버를 재시작합니다. 실제 인증값은 Git·스크린샷·로그에 남기지 마세요. URL 기본값은 `https://www.safe182.go.kr`입니다.
+
+**2.** 수동 실행할 회원을 관리자(USER → ADMIN)로 지정합니다. 아래 SQL의 이메일을 본인 계정으로 바꾼 후 개발 DB에서만 실행하세요. 더미 회원은 기본 USER이므로 배치 실행 권한이 없습니다.
+
+```sql
+UPDATE findus.members SET role = 'ADMIN' WHERE email = '본인 이메일';
+```
+
+**3.** Swagger에서 `GET /api/auth/csrf` → 로그인 → Authorize → **실종자 배치 / POST /api/admin/missing-sync**를 실행합니다. 요청 완료 후 `executionId`, `status`, `counts`를 확인합니다. 성공은 `COMPLETED`, 실패는 `FAILED`입니다. 시작 자체가 실패하면 503을 반환합니다.
+
+**4.** `GET /api/missing-persons?page=0&size=10`으로 목록을, 응답의 `id`를 사용해 `GET /api/missing-persons/{id}`로 상세를 조회합니다. 조회에는 로그인이 필요 없습니다. 응답의 `category`는 원본 코드(010: 아동, 060/061/062: 지적장애인, 070: 치매 등)를 유지합니다. 현재 API 공개 범위가 모든 성인 실종자를 포함한다고 가정하지 않습니다.
+
+**5.** 관리자 `GET /api/admin/missing-sync`에서 최근 실행 상태·시간을 확인합니다. 처리 건수는 수동 실행 응답과 Spring Batch 실행 컨텍스트에 보관합니다.
+
+| 설정 | 동작 |
+| --- | --- |
+| `MISSING_SCHEDULE_ENABLED=false` | 기본 로컬 설정. 수동 실행만 사용 |
+| `MISSING_SCHEDULE_ENABLED=true` | 한국 시간 04:00·16:00 예약 실행 |
+| `MISSING_SYNC_CRON` | 필요한 경우 Spring 형식 예약식 변경 |
+
+배포 시 서버 환경변수에 `SPRING_PROFILES_ACTIVE=prod`, 인증정보와 `MISSING_SCHEDULE_ENABLED=true`를 설정합니다. 예약 시각에 서버가 실행 중이어야 하며, 꺼진 동안 놓친 예약은 자동 소급 실행되지 않습니다. 관리자 수동 실행으로 보완합니다. 서버 시작 때 자동 수집하지 않습니다.
+
+전체 페이지의 건수·식별자를 검증한 뒤 한 트랜잭션으로 반영합니다. 페이지 누락·인증 오류·수집 중 전체 건수 변경·DB 오류는 기존 데이터를 유지합니다. 일시적인 통신 오류·429·5xx는 페이지당 최대 3회 요청하며 1초·2초 간격으로 재시도합니다. 최대 50페이지(5,000건)를 초과하면 자동 반영하지 않으며 제한 설정은 `app.missing.max-pages`입니다. 전체 0건 응답도 데이터 보호를 위해 실패로 처리하므로 실제 공개 데이터가 0건이 된 경우 관리자 확인이 필요합니다.
+
+최근 전체 수집에서 사라진 정보는 `source_available=false`로 표시하고 공개 조회에서 제외합니다. DB 행은 보존하며 **발견 완료로 판단하지 않습니다.** 이후 다시 공개되면 같은 UUID로 복구됩니다. 동시 실행은 PostgreSQL 잠금으로 중복 수집·반영을 막습니다.
+
+**사진 저장:** DB에는 `photo_url`만 저장합니다. API가 보내는 사진 내용은 보관하지 않습니다. 프론트는 이 주소로 경찰청 원본 사진을 표시할 수 있으며 안전Dream 장애·원본 삭제 시 사진도 표시되지 않을 수 있습니다. 사진 주소 자체는 원본 API에서 얻은 실종자 식별자로 구성합니다. 외부 사진 파일을 우리 DB나 S3에 복제하는 기능은 포함하지 않습니다.
+
+Grafana의 **FindUs 실종자 배치**에서 마지막 성공 이후 경과 시간·실행 성공/실패·처리 건수·실행 시간을 확인합니다. 실행 카운터는 서버 재시작 시 초기화되지만 Batch 이력과 마지막 수집 시각은 DB에 유지됩니다.
+
+자동 테스트는 가상 HTTP API와 임시 DB를 사용합니다. 실제 API 테스트는 `SAFE182_LIVE_TEST=true`와 두 인증 환경변수를 명시적으로 지정한 경우에만 실행합니다. 실제 데이터도 임시 DB에 저장하며 일반 테스트·빌드에서는 실행하지 않습니다.
+
+자료 출처: 경찰청. [공식 데이터 API](https://www.safe182.go.kr/home/api/guide5.do). 비상업적 이용·출처 표기 등 [안전Dream 이용약관](https://www.safe182.go.kr/home/api/provision.do)을 확인하세요.

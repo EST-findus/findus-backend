@@ -1,0 +1,16 @@
+package com.findus.backend.missing.repository;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import com.findus.backend.missing.entity.MissingPerson;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+public interface MissingPersonRepository {
+    List<MissingPerson> findAllForSync();
+    void saveAll(List<MissingPerson> persons);
+    boolean tryLock();
+    Page<MissingPerson> findAvailable(Pageable page);
+    Optional<MissingPerson> findAvailable(UUID id);
+}
