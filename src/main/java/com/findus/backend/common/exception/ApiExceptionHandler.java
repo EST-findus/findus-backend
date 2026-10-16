@@ -21,6 +21,19 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    @ExceptionHandler(com.findus.backend.favorite.exception.FavoriteNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> favoriteNotFound() {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiErrorResponse.of("FAVORITE_TARGET_NOT_FOUND", "등록 가능한 실종아동 정보를 찾을 수 없습니다."));
+    }
+    @ExceptionHandler(com.findus.backend.favorite.exception.FavoriteTargetException.class)
+    public ResponseEntity<ApiErrorResponse> favoriteTarget() {
+        return ResponseEntity.badRequest().body(ApiErrorResponse.of("INVALID_FAVORITE_TARGET", "원본 분류 코드 010인 아동만 관심 등록할 수 있습니다."));
+    }
+    @ExceptionHandler(com.findus.backend.favorite.exception.FavoritePageException.class)
+    public ResponseEntity<ApiErrorResponse> favoritePage() {
+        return ResponseEntity.badRequest().body(ApiErrorResponse.of("INVALID_REQUEST", "관심아동 페이지 또는 정렬 조건을 확인하세요."));
+    }
+
     @ExceptionHandler(com.findus.backend.missing.exception.MissingSyncException.class)
     public ResponseEntity<ApiErrorResponse> missingSyncFailed() {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiErrorResponse.of(

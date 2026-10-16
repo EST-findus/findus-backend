@@ -8,6 +8,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 interface MissingPersonJpaRepository extends JpaRepository<MissingPerson,UUID> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_READ)
+    @org.springframework.data.jpa.repository.Query("select p from MissingPerson p where p.id = :id and p.deletedAt is null")
+    Optional<MissingPerson> findForFavorite(@org.springframework.data.repository.query.Param("id") UUID id);
+
     Page<MissingPerson> findAllBySourceAvailableTrueAndDeletedAtIsNull(Pageable pageable);
     Optional<MissingPerson> findByIdAndSourceAvailableTrueAndDeletedAtIsNull(UUID id);
 }

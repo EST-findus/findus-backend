@@ -14,6 +14,7 @@ public class MissingPersonRepositoryImpl implements MissingPersonRepository {
     private final MissingPersonJpaRepository jpa;
     private final JdbcTemplate jdbc;
     public MissingPersonRepositoryImpl(MissingPersonJpaRepository jpa,JdbcTemplate jdbc) { this.jpa=jpa;this.jdbc=jdbc; }
+    @Override public Optional<MissingPerson> findForFavorite(UUID id) { return jpa.findForFavorite(id); }
     @Override public List<MissingPerson> findAllForSync() { return jpa.findAll(); }
     @Override public void saveAll(List<MissingPerson> persons) { jpa.saveAllAndFlush(persons); }
     @Override public boolean tryLock() {

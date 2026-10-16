@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 
 public interface MissingPersonRepository {
     List<MissingPerson> findAllForSync();
+    Optional<MissingPerson> findForFavorite(UUID id);
     void saveAll(List<MissingPerson> persons);
     boolean tryLock();
     Page<MissingPerson> findAvailable(Pageable page);
