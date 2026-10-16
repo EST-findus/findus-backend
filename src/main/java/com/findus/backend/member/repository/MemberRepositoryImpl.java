@@ -28,6 +28,10 @@ public class MemberRepositoryImpl implements MemberRepository {
 		return memberJpaRepository.findByIdAndDeletedAtIsNull(id);
 	}
 
+    @Override
+    @Transactional
+    public Optional<Member> findByIdForUpdate(UUID id) { return memberJpaRepository.findForUpdate(id); }
+
 	@Override
 	public Optional<Member> findByEmail(String email) {
 		return memberJpaRepository.findByEmailAndDeletedAtIsNull(Member.normalizeEmail(email));

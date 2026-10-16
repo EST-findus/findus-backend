@@ -35,6 +35,9 @@ public abstract class BaseEntity {
 		}
 	}
 
+    /** 복원이 필요한 하위 도메인에서만 사용합니다. 일반 공개 수정 기능으로 노출하지 않습니다. */
+    protected void restoreDeletedAt() { this.deletedAt = null; }
+
 	public boolean isDeleted() {
 		return deletedAt != null;
 	}

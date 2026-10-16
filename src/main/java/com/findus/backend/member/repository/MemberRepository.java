@@ -12,6 +12,8 @@ public interface MemberRepository {
 
 	Optional<Member> findById(UUID id);
 
+    Optional<Member> findByIdForUpdate(UUID id);
+
 	Optional<Member> findByEmail(String email);
 
 	/** 삭제된 회원도 포함하여 이메일 재사용을 막습니다. */
