@@ -2,6 +2,8 @@
 
 AI로 실종아동의 현재 예상 모습을 만들고, 실종 정보 검색·공유와 공식 제보 연결을 돕는 서비스의 백엔드입니다. AI 이미지는 참고용이며 실제 신원 일치를 보장하지 않습니다.
 
+📚 기획·PRD·발표자료·ERD는 [FindUs Documents](https://github.com/EST-findus/documents)에서 관리합니다. 실제 DB 변경용 Flyway SQL은 이 저장소의 `src/main/resources/db/migration/`에 유지합니다.
+
 **아래 순서대로 서버를 실행하고 응답을 확인할 수 있습니다.** 각자 컴퓨터의 PostgreSQL·Redis에 연결합니다.
 
 ## 1️⃣ 준비하기
