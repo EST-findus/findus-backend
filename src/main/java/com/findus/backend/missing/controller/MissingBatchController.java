@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/admin/missing-sync")
 // TODO 배포 전: SecurityConfig에서 관리자 권한·CSRF 검증을 복원하고 Swagger의 bearerAuth 요구도 복원합니다.
-@Tag(name="실종자 배치",description="MVP: 비회원도 JWT·CSRF 없이 실행·이력 조회 가능. 배포 전 관리자 전용으로 변경해야 합니다.")
+@Tag(name="실종자 배치",description="MVP local 프로필: 비회원도 JWT·CSRF 없이 실행·이력 조회 가능. 그 외 환경은 관리자 전용입니다. 배포 전 local 예외를 제거해야 합니다.")
 public class MissingBatchController {
     private final MissingBatchRunner runner;
     private final JdbcTemplate jdbc;

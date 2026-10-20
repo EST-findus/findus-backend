@@ -392,11 +392,11 @@ Spring Batch가 실종아동 원본 분류 `010`의 전체 공개 데이터를 1
 
 **1.** `.env`에 `SAFE182_ESNTL_ID`, `SAFE182_AUTH_KEY`를 설정하고 서버를 재시작합니다. 실제 인증값은 Git·스크린샷·로그에 남기지 마세요. URL 기본값은 `https://www.safe182.go.kr`입니다.
 
-**2.** MVP 단계에서는 회원가입·로그인·Authorize·CSRF 준비 없이 동기화를 실행할 수 있습니다. **배포 전에는 `SecurityConfig`의 해당 POST·GET 규칙을 `hasRole("ADMIN")`으로 변경하고, 동기화 POST의 CSRF 예외를 제거하며 Swagger의 관리자 인증 요구도 복원해야 합니다.**
+**2.** MVP `local` 프로필에서는 회원가입·로그인·Authorize·CSRF 준비 없이 동기화를 실행할 수 있습니다. 그 외 프로필은 관리자 권한·CSRF 검증을 유지합니다. **배포 전에는 `SecurityConfig`의 해당 POST·GET 규칙을 `hasRole("ADMIN")`으로 변경하고, 동기화 POST의 CSRF 예외를 제거하며 Swagger의 관리자 인증 요구도 복원해야 합니다.**
 
 **3.** Swagger에서 바로 **실종자 배치 / POST /api/admin/missing-sync**를 실행합니다. 요청 본문·인증 헤더는 필요 없습니다. 이전에 Authorize에 입력한 토큰이 만료됐다면 Logout으로 지운 뒤 실행합니다. 요청 완료 후 `executionId`, `status`, `counts`를 확인합니다. 성공은 `COMPLETED`, 실패는 `FAILED`입니다. 시작 자체가 실패하면 503을 반환합니다. 터미널에서는 `curl -X POST http://localhost:18080/api/admin/missing-sync`로 실행할 수 있습니다.
 
-**4.** `GET /api/missing-persons?page=0&size=10`으로 목록을, 응답의 `id`를 사용해 `GET /api/missing-persons/{id}`로 상세를 조회합니다. 조회에는 로그인이 필요 없습니다. 응답의 `category`는 원본 코드(010: 아동, 060/061/062: 지적장애인, 070: 치매 등)를 유지합니다. 현재 API 공개 범위가 모든 성인 실종자를 포함한다고 가정하지 않습니다.
+**4.** `GET /api/missing-persons?page=0&size=10`으로 목록을, 응답의 `id`를 사용해 `GET /api/missing-persons/{id}`로 상세를 조회합니다. 조회에는 로그인이 필요 없습니다. 공개 목록은 원본 분류 `010`(실종아동)만 포함합니다. 이전에 저장된 다른 분류는 다음 동기화에서 공개 중단 상태로 표시되고 공개 조회에서 제외됩니다.
 
 **5.** `GET /api/admin/missing-sync`에서 최근 실행 상태·시간을 확인합니다. 처리 건수는 수동 실행 응답과 Spring Batch 실행 컨텍스트에 보관합니다.
 
@@ -414,7 +414,7 @@ Spring Batch가 실종아동 원본 분류 `010`의 전체 공개 데이터를 1
 
 **사진 저장:** Flyway V9가 `findus.missing_person_images`를 생성합니다. `missing_person_id` 외래키로 실종자와 1:N 연결하고 사진 순번·출처 URL·MIME 형식·크기·SHA-256·사진 BYTEA를 저장합니다. 출처 사진 URL은 세션에 의존하므로 직접 표시하지 않습니다. 아동별 쿠키 세션에서 상세 페이지를 연 뒤 실제로 나열된 사진만 내려받아 저장합니다. 사진 파일은 최대 2MB이며 일시적인 사진 오류는 같은 세션에서 한 번 재시도합니다. 재시도도 실패하면 기존 사진을 유지합니다. 정상 전체 목록에서 사라진 사진은 소프트 삭제하고 다시 나타나면 같은 UUID로 복원합니다.
 
-**수동 실행 주소:** `POST http://localhost:18080/api/admin/missing-sync` (MVP: 비회원 허용, JWT·CSRF·요청 본문 없음). 같은 작업을 새벽 04시·16시 예약에서도 사용합니다. 아동별 사진 수신으로 완료까지 수 분 걸릴 수 있으므로 클라이언트 요청 제한 시간을 충분히 지정합니다. 수동 실행 응답의 `imagesSaved`는 수신·반영한 사진 수, `photoFailures`는 사진을 전부 확인하지 못한 아동 수입니다. 부분 사진 실패만 있으면 실종자 데이터와 정상 사진은 반영하고 기존 사진은 보존합니다. 전체 데이터 API 실패나 DB 오류는 전체 변경을 롤백합니다.
+**수동 실행 주소:** `POST http://localhost:18080/api/admin/missing-sync` (MVP local: 비회원 허용, JWT·CSRF·요청 본문 없음). 같은 작업을 새벽 04시·16시 예약에서도 사용합니다. 아동별 사진 수신으로 완료까지 수 분 걸릴 수 있으므로 클라이언트 요청 제한 시간을 충분히 지정합니다. 수동 실행 응답의 `imagesSaved`는 수신·반영한 사진 수, `photoFailures`는 사진을 전부 확인하지 못한 아동 수입니다. 부분 사진 실패만 있으면 실종자 데이터와 정상 사진은 반영하고 기존 사진은 보존합니다. 전체 데이터 API 실패나 DB 오류는 전체 변경을 롤백합니다.
 
 **조회:** `GET /api/missing-persons`와 `GET /api/missing-persons/{id}` 응답의 `images`는 이미지 UUID·순서·백엔드 기준 상대 URL·형식·크기를 포함합니다. 기존 `photoUrl` 필드는 대표 사진 URL로 유지합니다. 프론트에서는 상대 URL 앞에 백엔드 주소 또는 프록시 경로를 붙입니다. `GET /api/missing-persons/{id}/images/{imageId}`는 DB 사진을 쿠키 없이 반환합니다. 다른 아동의 사진, 삭제 사진, 공개 중단·삭제된 아동 사진은 404이며 캐시 저장을 금지합니다. 관심아동 응답에도 같은 이미지 정보를 포함합니다. 이미지 목록 조회는 BYTEA를 제외한 메타데이터만 한 번에 조회합니다.
 
