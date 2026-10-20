@@ -16,8 +16,11 @@ public record MissingPersonResponse(UUID id,String sourceId,String name,String c
         return from(p,List.of());
     }
     public static MissingPersonResponse from(MissingPerson p,List<MissingImageResponse> images) {
+        return from(p,images,images.isEmpty()?p.getPhotoUrl():images.get(0).url());
+    }
+    public static MissingPersonResponse from(MissingPerson p,List<MissingImageResponse> images,String mainPhotoUrl) {
         return new MissingPersonResponse(p.getId(),p.getSourceId(),p.getName(),p.getCategory(),p.getSex(),
                 p.getOccurrenceDate(),p.getAge(),p.getAgeNow(),p.getAddress(),p.getClothing(),p.getFeatures(),
-                images.isEmpty()?p.getPhotoUrl():images.get(0).url(),List.copyOf(images),p.getLastSeenAt(),"자료 출처: 경찰청");
+                mainPhotoUrl,List.copyOf(images),p.getLastSeenAt(),"자료 출처: 경찰청");
     }
 }

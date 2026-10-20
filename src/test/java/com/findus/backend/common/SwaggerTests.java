@@ -51,6 +51,18 @@ class SwaggerTests {
 	@Autowired ObjectMapper mapper;
 	// endregion
 
+    @Test
+    void AI저장구조를_추가해도_기존_OpenAPI문서는_동일하다() throws Exception {
+        var result=mvc.perform(get("/v3/api-docs")).andExpect(status().isOk()).andReturn();
+        var doc=(tools.jackson.databind.node.ObjectNode)mapper.readTree(result.getResponse().getContentAsString());
+        // 테스트 실행 주소만 제외하고 경로·요청·응답 스키마·설명 전체를 비교합니다.
+        doc.remove("servers");
+        try (var baseline=getClass().getResourceAsStream("/contracts/openapi-before-ai-images.json")) {
+            assertThat(baseline).isNotNull();
+            assertThat(doc).isEqualTo(mapper.readTree(baseline));
+        }
+    }
+
 	// region 문서·화면·인증 안내
 	@Test
 	@DisplayName("로그인 없이 UI·문서·CSRF 설정을 읽을 수 있고 내부 인증 인자는 나타나지 않는다")

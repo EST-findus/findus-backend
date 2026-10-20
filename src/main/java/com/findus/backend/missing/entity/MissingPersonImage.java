@@ -23,6 +23,7 @@ public class MissingPersonImage extends BaseEntity {
     @Column(nullable=false, columnDefinition="bytea") private byte[] content;
     @Column(name="byte_size", nullable=false) private int byteSize;
     @Column(nullable=false, length=64) private String sha256;
+    @Column(name="is_main", nullable=false) private boolean main;
 
     public MissingPersonImage(MissingPerson person, int order, SafeDreamPhotoSource.Image image) {
         missingPerson=person; sortOrder=order; apply(image);
@@ -37,4 +38,10 @@ public class MissingPersonImage extends BaseEntity {
         }
         sourceUrl=image.sourceUrl(); restoreDeletedAt();
     }
+    public void selectAsMain() {
+        if (isDeleted()) throw new IllegalStateException("삭제된 사진은 대표로 지정할 수 없습니다.");
+        main=true;
+    }
+    public void clearMain() { main=false; }
+    @Override public void softDelete() { clearMain(); super.softDelete(); }
 }

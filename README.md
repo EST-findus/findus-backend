@@ -412,6 +412,8 @@ Spring Batch가 실종아동 원본 분류 `010`의 전체 공개 데이터를 1
 
 최근 전체 수집에서 사라진 정보는 `source_available=false`로 표시하고 공개 조회에서 제외합니다. DB 행은 보존하며 **발견 완료로 판단하지 않습니다.** 이후 다시 공개되면 같은 UUID로 복구됩니다. 동시 실행은 PostgreSQL 잠금으로 중복 수집·반영을 막습니다.
 
+**대표 원본·AI 결과 저장:** Flyway V10이 원본 사진에 `is_main`을 추가하고 `missing_person_ai_images`를 생성합니다. 원본은 처음에 첫 활성 순번, AI는 최초 저장 결과를 대표로 선택합니다. 원본 FK와 AI 생성 결과를 분리하며 기존 API 문서·응답 필드는 유지합니다. 실제 AI 모델 호출·새 HTTP API·프론트엔드 변경은 포함하지 않습니다. 자세한 내부 계약은 Documents의 [대표 사진·AI 저장 구조](https://github.com/EST-findus/documents/blob/main/guides/ai-image-storage.md)를 참고하세요.
+
 **사진 저장:** Flyway V9가 `findus.missing_person_images`를 생성합니다. `missing_person_id` 외래키로 실종자와 1:N 연결하고 사진 순번·출처 URL·MIME 형식·크기·SHA-256·사진 BYTEA를 저장합니다. 출처 사진 URL은 세션에 의존하므로 직접 표시하지 않습니다. 아동별 쿠키 세션에서 상세 페이지를 연 뒤 실제로 나열된 사진만 내려받아 저장합니다. 사진 파일은 최대 2MB이며 일시적인 사진 오류는 같은 세션에서 한 번 재시도합니다. 재시도도 실패하면 기존 사진을 유지합니다. 정상 전체 목록에서 사라진 사진은 소프트 삭제하고 다시 나타나면 같은 UUID로 복원합니다.
 
 **수동 실행 주소:** `POST http://localhost:18080/api/admin/missing-sync` (MVP local: 비회원 허용, JWT·CSRF·요청 본문 없음). 같은 작업을 새벽 04시·16시 예약에서도 사용합니다. 아동별 사진 수신으로 완료까지 수 분 걸릴 수 있으므로 클라이언트 요청 제한 시간을 충분히 지정합니다. 수동 실행 응답의 `imagesSaved`는 수신·반영한 사진 수, `photoFailures`는 사진을 전부 확인하지 못한 아동 수입니다. 부분 사진 실패만 있으면 실종자 데이터와 정상 사진은 반영하고 기존 사진은 보존합니다. 전체 데이터 API 실패나 DB 오류는 전체 변경을 롤백합니다.

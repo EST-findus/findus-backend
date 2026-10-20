@@ -1,0 +1,1917 @@
+{
+  "openapi" : "3.1.0",
+  "info" : {
+    "title" : "FindUs API",
+    "description" : "회원·인증·게시글·댓글·실종자·관심아동 API를 확인하고 테스트하는 로컬 문서입니다. 회원가입 → 보안 토큰 준비(GET /api/auth/csrf) → 로그인 → Authorize 순서로 진행하세요. Authorize에는 로그인 응답의 accessToken만 입력합니다. 인증이 필요한 쓰기 요청에는 CSRF도 필요하며 Swagger가 쿠키에서 읽어 자동 전달합니다. MVP local 프로필의 실종자 동기화 실행·이력 조회는 회원가입·로그인·JWT·CSRF 없이 가능합니다. Refresh Token은 브라우저의 HttpOnly 쿠키로 관리합니다. 실제 DB 데이터가 변경될 수 있습니다.",
+    "version" : "v1"
+  },
+  "tags" : [ {
+    "name" : "실종자",
+    "description" : "안전Dream에서 동기화한 공개 정보. 자료 출처: 경찰청"
+  }, {
+    "name" : "실종자 배치",
+    "description" : "MVP local 프로필: 비회원도 JWT·CSRF 없이 실행·이력 조회 가능. 그 외 환경은 관리자 전용입니다. 배포 전 local 예외를 제거해야 합니다."
+  }, {
+    "name" : "인증",
+    "description" : "로그인·토큰 재발급·로그아웃 및 CSRF 준비"
+  }, {
+    "name" : "관심아동",
+    "description" : "로그인한 회원의 관심아동 관리. JWT 필요, 등록·취소는 CSRF도 필요합니다."
+  }, {
+    "name" : "실종자",
+    "description" : "자료 출처: 경찰청"
+  }, {
+    "name" : "댓글",
+    "description" : "게시글별 공개 목록과 작성자만 가능한 수정·소프트 삭제"
+  }, {
+    "name" : "게시글",
+    "description" : "공개 조회 및 작성자만 가능한 수정·삭제"
+  }, {
+    "name" : "회원",
+    "description" : "회원가입 및 내 정보 조회"
+  }, {
+    "name" : "상태 확인",
+    "description" : "서버·DB·Redis 및 로컬 모니터링 연결 상태"
+  } ],
+  "paths" : {
+    "/api/posts/{postId}/comments/{commentId}" : {
+      "put" : {
+        "tags" : [ "댓글" ],
+        "summary" : "댓글 수정",
+        "description" : "댓글 작성자만 수정할 수 있습니다. JWT와 CSRF가 필요하며 다른 게시글에 속한 댓글은 404를 반환합니다.",
+        "operationId" : "update",
+        "parameters" : [ {
+          "name" : "postId",
+          "in" : "path",
+          "description" : "게시글 ID (UUID)",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "commentId",
+          "in" : "path",
+          "description" : "댓글 ID (UUID)",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CommentWriteRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "댓글 수정 완료",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommentResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "UUID·본문 오류",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "로그인 필요",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "작성자가 아니거나 CSRF 검증 실패",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "게시글 또는 댓글 없음",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "delete" : {
+        "tags" : [ "댓글" ],
+        "summary" : "댓글 삭제",
+        "description" : "댓글 작성자만 삭제할 수 있습니다. JWT와 CSRF가 필요하며 DB 행은 보존하고 deleted_at을 기록합니다.",
+        "operationId" : "delete",
+        "parameters" : [ {
+          "name" : "postId",
+          "in" : "path",
+          "description" : "게시글 ID (UUID)",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "commentId",
+          "in" : "path",
+          "description" : "댓글 ID (UUID)",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "댓글 삭제 완료"
+          },
+          "400" : {
+            "description" : "UUID 형식 오류",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "로그인 필요",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "작성자가 아니거나 CSRF 검증 실패",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "게시글 또는 댓글 없음",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/posts/{id}" : {
+      "get" : {
+        "tags" : [ "게시글" ],
+        "summary" : "게시글 상세",
+        "description" : "삭제되었거나 없는 게시글은 404를 반환합니다. 응답의 날짜·시간은 UTC 기준입니다.",
+        "operationId" : "detail",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "description" : "게시글 ID (UUID)",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "example" : "123e4567-e89b-12d3-a456-426614174000"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "게시글 상세 조회 성공",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PostResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "UUID 형식 오류",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "게시글 없음",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put" : {
+        "tags" : [ "게시글" ],
+        "summary" : "게시글 수정",
+        "description" : "작성자만 수정할 수 있습니다. 제목과 본문을 모두 보내세요. JWT와 CSRF가 필요합니다.",
+        "operationId" : "update_1",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "description" : "게시글 ID (UUID)",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "example" : "123e4567-e89b-12d3-a456-426614174000"
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PostWriteRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "게시글 수정 완료",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PostResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "입력 형식 오류",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "로그인이 필요함",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "작성자가 아니거나 CSRF 검증 실패",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "게시글 없음",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "delete" : {
+        "tags" : [ "게시글" ],
+        "summary" : "게시글 삭제",
+        "description" : "작성자만 삭제할 수 있습니다. deleted_at을 기록하는 소프트 삭제이며 삭제된 글은 조회에서 제외합니다. JWT와 CSRF가 필요합니다.",
+        "operationId" : "delete_1",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "description" : "게시글 ID (UUID)",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "example" : "123e4567-e89b-12d3-a456-426614174000"
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "게시글 삭제 완료"
+          },
+          "400" : {
+            "description" : "UUID 형식 오류",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "로그인이 필요함",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "작성자가 아니거나 CSRF 검증 실패",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "게시글 없음",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/members/me/favorites/{missingPersonId}" : {
+      "put" : {
+        "tags" : [ "관심아동" ],
+        "summary" : "관심아동 등록",
+        "description" : "우리 DB의 실종자 UUID를 넣습니다. 공개 중인 아동 코드 010만 가능하며 현재 나이는 제한하지 않습니다. 반복 등록은 같은 행을 유지하고 취소 후에는 기존 행을 복원합니다.",
+        "operationId" : "register",
+        "parameters" : [ {
+          "name" : "missingPersonId",
+          "in" : "path",
+          "description" : "GET /api/missing-persons 응답의 id(UUID). 경찰청 sourceId가 아닙니다.",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "등록 또는 기존 관심 반환",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FavoriteResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "아동 코드가 아닌 대상 또는 잘못된 UUID",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FavoriteResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "존재하지 않거나 공개 중단·삭제된 실종자",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FavoriteResponse"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      },
+      "delete" : {
+        "tags" : [ "관심아동" ],
+        "summary" : "관심아동 취소",
+        "description" : "관심 관계만 소프트 삭제합니다. 아동·회원 데이터는 유지하며 반복 취소도 204입니다.",
+        "operationId" : "cancel",
+        "parameters" : [ {
+          "name" : "missingPersonId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "취소 완료 또는 이미 취소된 상태"
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/posts" : {
+      "get" : {
+        "tags" : [ "게시글" ],
+        "summary" : "게시글 목록",
+        "description" : "첫 페이지는 0입니다. 기본 10개, 최대 100개이며 삭제된 글은 제외합니다. sort 허용 필드: createdAt, updatedAt, title, id. 기본 정렬은 createdAt,desc와 id,desc입니다.",
+        "operationId" : "list",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "description" : "Zero-based page index (0..N)",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "description" : "The size of the page to be returned",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "default" : 10,
+            "minimum" : 1
+          }
+        }, {
+          "name" : "sort",
+          "in" : "query",
+          "description" : "Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "default" : [ "createdAt,DESC", "id,DESC" ],
+            "items" : {
+              "type" : "string"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "게시글 목록 조회 성공",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PostPageResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "허용하지 않는 정렬 또는 페이지 요청",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "게시글" ],
+        "summary" : "게시글 작성",
+        "description" : "JWT와 CSRF가 필요합니다. 작성자는 로그인 정보에서 결정되며 성공 시 Location 헤더에 게시글 주소를 반환합니다.",
+        "operationId" : "create",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PostWriteRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "게시글 작성 완료",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PostResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "입력 형식 오류",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "로그인이 필요함",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "CSRF 검증 실패",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/posts/{postId}/comments" : {
+      "get" : {
+        "tags" : [ "댓글" ],
+        "summary" : "댓글 목록",
+        "description" : "첫 페이지는 0, 기본 10개·최대 100개입니다. 기본 작성 시간·UUID 오름차순이며 sort 허용 필드는 createdAt, updatedAt, id입니다. 삭제된 게시글은 404, 삭제된 댓글은 목록·개수에서 제외합니다.",
+        "operationId" : "list_1",
+        "parameters" : [ {
+          "name" : "postId",
+          "in" : "path",
+          "description" : "게시글 ID (UUID)",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "page",
+          "in" : "query",
+          "description" : "Zero-based page index (0..N)",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "description" : "The size of the page to be returned",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "default" : 10,
+            "minimum" : 1
+          }
+        }, {
+          "name" : "sort",
+          "in" : "query",
+          "description" : "Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "default" : [ "createdAt,ASC", "id,ASC" ],
+            "items" : {
+              "type" : "string"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "댓글 목록 조회 성공",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommentPageResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "UUID·페이지·정렬 조건 오류",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "게시글 없음",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "댓글" ],
+        "summary" : "댓글 작성",
+        "description" : "JWT와 CSRF가 필요합니다. 작성자는 로그인 정보에서 결정됩니다. 댓글 내용은 최대 1000자이며 줄바꿈을 보존합니다.",
+        "operationId" : "create_1",
+        "parameters" : [ {
+          "name" : "postId",
+          "in" : "path",
+          "description" : "게시글 ID (UUID)",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CommentWriteRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "댓글 작성 완료",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CommentResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "UUID·본문 오류",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "로그인 필요",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "CSRF 검증 실패",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404" : {
+            "description" : "게시글 없음",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/members" : {
+      "post" : {
+        "tags" : [ "회원" ],
+        "summary" : "회원가입",
+        "description" : "테스트 이메일을 사용하세요. 성공하면 회원이 DB에 저장됩니다. 같은 이메일로 다시 가입할 수 없습니다.",
+        "operationId" : "signup",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MemberSignupRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "description" : "회원가입 완료",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MemberSignupResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "입력 형식 오류",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409" : {
+            "description" : "이미 가입된 이메일",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/refresh" : {
+      "post" : {
+        "tags" : [ "인증" ],
+        "summary" : "토큰 재발급",
+        "description" : "로그인 시 저장된 쿠키를 브라우저가 자동 전송합니다. CSRF가 필요하며 Refresh Token은 재발급할 때 교체됩니다. 새 accessToken으로 Authorize를 갱신하세요.",
+        "operationId" : "refresh",
+        "responses" : {
+          "200" : {
+            "description" : "토큰 재발급 성공",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "로그인 쿠키가 없거나 유효하지 않음",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "CSRF 검증 실패",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "인증 저장소 연결 실패",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout" : {
+      "post" : {
+        "tags" : [ "인증" ],
+        "summary" : "로그아웃",
+        "description" : "현재 로그인 세션을 차단하고 Refresh 쿠키를 삭제합니다. CSRF가 필요합니다. 이후 Swagger의 Authorize에서도 Logout을 눌러 입력한 토큰을 제거하세요.",
+        "operationId" : "logout",
+        "responses" : {
+          "204" : {
+            "description" : "로그아웃 완료"
+          },
+          "403" : {
+            "description" : "CSRF 검증 실패",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "인증 저장소 연결 실패",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login" : {
+      "post" : {
+        "tags" : [ "인증" ],
+        "summary" : "로그인",
+        "description" : "먼저 보안 토큰 준비를 실행하세요. accessToken은 응답 본문으로, Refresh Token은 HttpOnly 쿠키로 반환합니다.",
+        "operationId" : "login",
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "description" : "로그인 성공",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "400" : {
+            "description" : "입력 형식 오류",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "회원 인증 실패",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403" : {
+            "description" : "CSRF 검증 실패",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "인증 저장소 연결 실패",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/missing-sync" : {
+      "get" : {
+        "tags" : [ "실종자 배치" ],
+        "summary" : "최근 배치 실행 결과",
+        "description" : "최근 20건의 상태·시각만 제공합니다. 원본 데이터·인증정보·상세 오류는 공개하지 않습니다.",
+        "operationId" : "history",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "type" : "object",
+                    "additionalProperties" : { }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post" : {
+        "tags" : [ "실종자 배치" ],
+        "summary" : "실종자 수집·동기화 수동 실행",
+        "description" : "실종아동 010과 사진을 수집하여 완료까지 기다린 뒤 처리 건수·사진 부분 실패 수·실제 HTTP 요청 수를 반환합니다. 수 분 걸릴 수 있습니다. 전체 데이터 수집 또는 DB 오류 시 FAILED로 기존 DB를 유지하며 개별 사진 실패는 기존 사진을 보존합니다.",
+        "operationId" : "run",
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/BatchRunResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health" : {
+      "get" : {
+        "tags" : [ "상태 확인" ],
+        "summary" : "연결 상태 확인",
+        "description" : "일반 텍스트로 연결 상태를 반환합니다. DB는 SELECT 1, Redis는 PING으로 확인합니다. 로컬에서는 Prometheus·Grafana와 두 exporter도 검사합니다. exporter는 45초 이내의 Prometheus 수집 성공 결과로 확인하므로 중단 반영에 지연이 있을 수 있습니다.",
+        "operationId" : "health",
+        "responses" : {
+          "200" : {
+            "description" : "모든 연결 정상",
+            "content" : {
+              "text/plain" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          },
+          "503" : {
+            "description" : "하나 이상의 서비스 확인 실패",
+            "content" : {
+              "text/plain" : {
+                "schema" : {
+                  "type" : "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/missing-persons" : {
+      "get" : {
+        "tags" : [ "실종자" ],
+        "summary" : "실종자 목록",
+        "description" : "첫 페이지는 0, 크기는 1~100. 공개 중단 정보는 제외하며 원본 발생일 내림차순으로 정렬합니다.",
+        "operationId" : "list_2",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 10
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MissingPageResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/missing-persons/{personId}/images/{imageId}" : {
+      "get" : {
+        "tags" : [ "실종자" ],
+        "summary" : "저장된 실종아동 사진",
+        "description" : "쿠키 없이 DB에 저장된 사진을 반환합니다. 다른 아동의 사진·공개 중단·삭제된 사진은 404입니다.",
+        "operationId" : "image",
+        "parameters" : [ {
+          "name" : "personId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        }, {
+          "name" : "imageId",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "image/jpeg" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "byte"
+                }
+              },
+              "image/png" : {
+                "schema" : {
+                  "type" : "string",
+                  "format" : "byte"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/missing-persons/{id}" : {
+      "get" : {
+        "tags" : [ "실종자" ],
+        "summary" : "실종자 상세",
+        "description" : "우리 DB의 UUID로 조회합니다. 경찰청 원본 식별자는 sourceId, 발생일은 원본 문자열입니다.",
+        "operationId" : "detail_1",
+        "parameters" : [ {
+          "name" : "id",
+          "in" : "path",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MissingPersonResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/members/me" : {
+      "get" : {
+        "tags" : [ "회원" ],
+        "summary" : "내 정보 조회",
+        "description" : "로그인 후 Authorize에 accessToken을 입력하세요. 비밀번호와 해시는 반환하지 않습니다.",
+        "operationId" : "me",
+        "responses" : {
+          "200" : {
+            "description" : "내 정보 조회 성공",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/MemberInfoResponse"
+                }
+              }
+            }
+          },
+          "401" : {
+            "description" : "로그인이 필요함",
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/members/me/favorites" : {
+      "get" : {
+        "tags" : [ "관심아동" ],
+        "summary" : "내 관심아동 목록",
+        "description" : "기본 10개, 최대 100개. 최초 등록 시각 내림차순이며 createdAt·id 정렬만 허용합니다. 공개 중단·삭제·분류 변경 시 child는 null이고 availability만 표시합니다. 재등록 시 최초 등록 시각은 유지합니다.",
+        "operationId" : "list_3",
+        "parameters" : [ {
+          "name" : "page",
+          "in" : "query",
+          "description" : "Zero-based page index (0..N)",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "name" : "size",
+          "in" : "query",
+          "description" : "The size of the page to be returned",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "default" : 10,
+            "minimum" : 1
+          }
+        }, {
+          "name" : "sort",
+          "in" : "query",
+          "description" : "Sorting criteria in the format: property,(asc|desc). Default sort order is ascending. Multiple sort criteria are supported.",
+          "required" : false,
+          "schema" : {
+            "type" : "array",
+            "default" : [ "createdAt,DESC", "id,DESC" ],
+            "items" : {
+              "type" : "string"
+            }
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FavoritePageResponse"
+                }
+              }
+            }
+          }
+        },
+        "security" : [ {
+          "bearerAuth" : [ ]
+        } ]
+      }
+    },
+    "/api/auth/csrf" : {
+      "get" : {
+        "tags" : [ "인증" ],
+        "summary" : "보안 토큰 준비",
+        "description" : "로그인·재발급·로그아웃 및 게시글 쓰기 전에 실행하세요. XSRF-TOKEN 쿠키가 준비되며 Swagger가 쓰기 요청에 자동 전달합니다.",
+        "operationId" : "csrf",
+        "responses" : {
+          "200" : {
+            "description" : "보안 토큰 준비 완료",
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "type" : "object",
+                  "additionalProperties" : {
+                    "type" : "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "CommentWriteRequest" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "type" : "string",
+            "description" : "댓글: 공백만 사용 불가, 최대 1000자. 일반 텍스트로 사용합니다.",
+            "example" : "도움이 되는 정보 감사합니다.",
+            "maxLength" : 1000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "content" ]
+      },
+      "ApiErrorResponse" : {
+        "type" : "object",
+        "properties" : {
+          "code" : {
+            "type" : "string",
+            "description" : "오류 코드",
+            "example" : "INVALID_REQUEST"
+          },
+          "message" : {
+            "type" : "string",
+            "description" : "오류 안내"
+          },
+          "errors" : {
+            "type" : "array",
+            "description" : "입력 항목별 오류 목록",
+            "items" : {
+              "$ref" : "#/components/schemas/FieldError"
+            }
+          }
+        }
+      },
+      "FieldError" : {
+        "type" : "object",
+        "properties" : {
+          "field" : {
+            "type" : "string",
+            "description" : "수정할 입력 항목"
+          },
+          "message" : {
+            "type" : "string"
+          }
+        }
+      },
+      "CommentAuthorResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "작성자 회원 ID (UUID)"
+          },
+          "nickname" : {
+            "type" : "string",
+            "description" : "작성자 닉네임: 탈퇴 시 탈퇴한 회원으로 표시"
+          }
+        }
+      },
+      "CommentResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "댓글 ID (UUID)"
+          },
+          "postId" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "댓글이 속한 게시글 ID (UUID)"
+          },
+          "content" : {
+            "type" : "string",
+            "description" : "댓글 본문"
+          },
+          "author" : {
+            "$ref" : "#/components/schemas/CommentAuthorResponse",
+            "description" : "작성자의 공개 정보"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "작성 시간 (UTC)"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "수정 시간 (UTC)"
+          }
+        }
+      },
+      "PostWriteRequest" : {
+        "type" : "object",
+        "properties" : {
+          "title" : {
+            "type" : "string",
+            "description" : "제목: 공백만 사용 불가, 최대 200자",
+            "example" : "첫 게시글",
+            "maxLength" : 200,
+            "minLength" : 0
+          },
+          "content" : {
+            "type" : "string",
+            "description" : "본문: 공백만 사용 불가, 최대 10000자. 일반 텍스트로 사용합니다.",
+            "example" : "Swagger에서 작성한 테스트 게시글입니다.",
+            "maxLength" : 10000,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "content", "title" ]
+      },
+      "PostAuthorResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "작성자 회원 ID (UUID)"
+          },
+          "nickname" : {
+            "type" : "string",
+            "description" : "작성자 닉네임: 탈퇴 시 탈퇴한 회원으로 표시"
+          }
+        }
+      },
+      "PostResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "게시글 ID (UUID)"
+          },
+          "title" : {
+            "type" : "string",
+            "description" : "제목"
+          },
+          "content" : {
+            "type" : "string",
+            "description" : "본문"
+          },
+          "author" : {
+            "$ref" : "#/components/schemas/PostAuthorResponse",
+            "description" : "작성자 공개 정보"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "작성 시간 (UTC)"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "수정 시간 (UTC)"
+          }
+        }
+      },
+      "FavoriteResponse" : {
+        "type" : "object",
+        "description" : "내 관심아동. 공개 중단·삭제·분류 변경 시 child는 null이며 개인정보를 제공하지 않습니다.",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "관심 등록 UUID"
+          },
+          "missingPersonId" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "우리 DB의 실종자 UUID. 등록·취소 URL에 사용합니다."
+          },
+          "savedAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "최초 등록 시각. 재등록해도 유지하며 UTC입니다."
+          },
+          "availability" : {
+            "type" : "string",
+            "description" : "AVAILABLE: 조회 가능, UNAVAILABLE: 공개 중단 또는 삭제, NOT_CHILD: 아동 분류에서 변경",
+            "enum" : [ "AVAILABLE", "UNAVAILABLE", "NOT_CHILD" ]
+          },
+          "child" : {
+            "$ref" : "#/components/schemas/MissingPersonResponse",
+            "description" : "조회 가능한 아동만 포함하는 공개 정보. 이용 불가 시 null"
+          }
+        }
+      },
+      "MissingImageResponse" : {
+        "type" : "object",
+        "description" : "DB에 고정 저장된 사진. URL은 백엔드 기준 상대 경로이며 인증 없이 공개 상태를 확인한 뒤 반환합니다.",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "sortOrder" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "url" : {
+            "type" : "string"
+          },
+          "contentType" : {
+            "type" : "string"
+          },
+          "byteSize" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "MissingPersonResponse" : {
+        "type" : "object",
+        "description" : "안전Dream 공개 실종 정보. 자료 출처: 경찰청",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "sourceId" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "category" : {
+            "type" : "string"
+          },
+          "sex" : {
+            "type" : "string"
+          },
+          "occurrenceDate" : {
+            "type" : "string"
+          },
+          "age" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "ageNow" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "address" : {
+            "type" : "string"
+          },
+          "clothing" : {
+            "type" : "string"
+          },
+          "features" : {
+            "type" : "string"
+          },
+          "photoUrl" : {
+            "type" : "string",
+            "description" : "대표 사진의 백엔드 상대 경로. 기존 미동기화 데이터는 경찰청 원본 주소일 수 있습니다."
+          },
+          "images" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MissingImageResponse"
+            }
+          },
+          "lastSeenAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "attribution" : {
+            "type" : "string"
+          }
+        }
+      },
+      "MemberSignupRequest" : {
+        "type" : "object",
+        "properties" : {
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "description" : "회원 이메일: 앞뒤 공백 제거 및 소문자 변환",
+            "example" : "swagger.test@example.com",
+            "maxLength" : 254,
+            "minLength" : 0
+          },
+          "password" : {
+            "type" : "string",
+            "description" : "비밀번호: 공백만 사용 불가, 8자 이상, UTF-8 기준 72바이트 이하",
+            "example" : "Local-test123!",
+            "minLength" : 8,
+            "writeOnly" : true
+          },
+          "name" : {
+            "type" : "string",
+            "description" : "이름: 최대 100자",
+            "example" : "테스트회원",
+            "maxLength" : 100,
+            "minLength" : 0
+          },
+          "nickname" : {
+            "type" : "string",
+            "description" : "닉네임: 최대 50자",
+            "example" : "찾음이",
+            "maxLength" : 50,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "email", "name", "nickname" ]
+      },
+      "MemberSignupResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "생성된 회원 ID (UUID)"
+          },
+          "email" : {
+            "type" : "string",
+            "description" : "가입 이메일"
+          },
+          "name" : {
+            "type" : "string",
+            "description" : "이름"
+          },
+          "nickname" : {
+            "type" : "string",
+            "description" : "닉네임"
+          }
+        }
+      },
+      "TokenResponse" : {
+        "type" : "object",
+        "properties" : {
+          "accessToken" : {
+            "type" : "string",
+            "description" : "API 인증에 사용할 Access Token"
+          },
+          "tokenType" : {
+            "type" : "string",
+            "description" : "인증 방식",
+            "example" : "Bearer"
+          },
+          "expiresIn" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Access Token 유효 기간 (초)",
+            "example" : 900
+          }
+        }
+      },
+      "LoginRequest" : {
+        "type" : "object",
+        "properties" : {
+          "email" : {
+            "type" : "string",
+            "format" : "email",
+            "description" : "회원 이메일",
+            "example" : "swagger.test@example.com",
+            "maxLength" : 254,
+            "minLength" : 0
+          },
+          "password" : {
+            "type" : "string",
+            "description" : "비밀번호: 8자 이상, UTF-8 기준 72바이트 이하",
+            "example" : "Local-test123!",
+            "minLength" : 8,
+            "writeOnly" : true
+          }
+        },
+        "required" : [ "email" ]
+      },
+      "BatchRunResponse" : {
+        "type" : "object",
+        "properties" : {
+          "executionId" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "counts" : {
+            "$ref" : "#/components/schemas/SyncCounts"
+          }
+        }
+      },
+      "SyncCounts" : {
+        "type" : "object",
+        "properties" : {
+          "received" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "inserted" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "updated" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "unavailable" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "imagesSaved" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "photoFailures" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "requests" : {
+            "$ref" : "#/components/schemas/SyncRequests"
+          }
+        }
+      },
+      "SyncRequests" : {
+        "type" : "object",
+        "properties" : {
+          "api" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "detail" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "image" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "total" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "PostPageResponse" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "type" : "array",
+            "description" : "현재 페이지의 게시글 목록",
+            "items" : {
+              "$ref" : "#/components/schemas/PostSummaryResponse"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "현재 페이지 번호: 첫 페이지는 0",
+            "example" : 0
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "페이지당 게시글 수: 기본 10, 최대 100",
+            "example" : 10
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "조회 가능한 전체 게시글 수"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "전체 페이지 수"
+          },
+          "hasNext" : {
+            "type" : "boolean",
+            "description" : "다음 페이지가 있는지 여부"
+          },
+          "hasPrevious" : {
+            "type" : "boolean",
+            "description" : "이전 페이지가 있는지 여부"
+          }
+        }
+      },
+      "PostSummaryResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "게시글 ID (UUID)"
+          },
+          "title" : {
+            "type" : "string",
+            "description" : "제목"
+          },
+          "author" : {
+            "$ref" : "#/components/schemas/PostAuthorResponse",
+            "description" : "작성자 공개 정보"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "작성 시간 (UTC)"
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "수정 시간 (UTC)"
+          }
+        }
+      },
+      "CommentPageResponse" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "type" : "array",
+            "description" : "현재 페이지의 댓글 목록",
+            "items" : {
+              "$ref" : "#/components/schemas/CommentResponse"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "현재 페이지 번호: 첫 페이지는 0",
+            "example" : 0
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "페이지당 댓글 수: 기본 10, 최대 100",
+            "example" : 10
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "조회 가능한 전체 댓글 수"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "전체 페이지 수"
+          },
+          "hasNext" : {
+            "type" : "boolean",
+            "description" : "다음 페이지 여부"
+          },
+          "hasPrevious" : {
+            "type" : "boolean",
+            "description" : "이전 페이지 여부"
+          }
+        }
+      },
+      "MissingPageResponse" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/MissingPersonResponse"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "MemberInfoResponse" : {
+        "type" : "object",
+        "properties" : {
+          "id" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "회원 ID (UUID)"
+          },
+          "email" : {
+            "type" : "string",
+            "description" : "회원 이메일"
+          },
+          "name" : {
+            "type" : "string",
+            "description" : "이름"
+          },
+          "nickname" : {
+            "type" : "string",
+            "description" : "닉네임"
+          },
+          "role" : {
+            "type" : "string",
+            "description" : "회원 권한: USER 또는 ADMIN",
+            "enum" : [ "USER", "ADMIN" ]
+          },
+          "status" : {
+            "type" : "string",
+            "description" : "회원 상태: ACTIVE 또는 INACTIVE",
+            "enum" : [ "ACTIVE", "INACTIVE" ]
+          }
+        }
+      },
+      "FavoritePageResponse" : {
+        "type" : "object",
+        "properties" : {
+          "content" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/FavoriteResponse"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "hasNext" : {
+            "type" : "boolean"
+          },
+          "hasPrevious" : {
+            "type" : "boolean"
+          }
+        }
+      }
+    },
+    "securitySchemes" : {
+      "bearerAuth" : {
+        "type" : "http",
+        "description" : "로그인 응답의 accessToken만 입력하세요. Bearer 접두사는 자동으로 붙습니다.",
+        "scheme" : "bearer",
+        "bearerFormat" : "JWT"
+      }
+    }
+  }
+}

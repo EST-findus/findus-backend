@@ -81,6 +81,7 @@ class MissingImageSyncTests {
         p.add("app.missing.base-url",() -> "http://127.0.0.1:"+SERVER.getAddress().getPort());
     }
     @Autowired MissingBatchRunner runner;
+    @Autowired com.findus.backend.missing.service.MissingImageManagementService management;
     @Autowired JdbcTemplate jdbc;
     @Autowired MockMvc mvc;
     @BeforeEach void reset() { mode="normal";changed=false;jdbc.update("DELETE FROM findus.missing_persons"); }
@@ -142,6 +143,97 @@ class MissingImageSyncTests {
             assertThat(jdbc.queryForObject("SELECT sha256 FROM findus.missing_person_images WHERE id=?",String.class,image(1,0))).isEqualTo(hash);
             assertThat(visible()).isEqualTo(5);
         } finally { jdbc.execute("ALTER TABLE findus.missing_person_images DROP CONSTRAINT ck_test_image_reject"); }
+    }
+    @Test void 대표_원본은_선택값을_유지하고_사라지면_첫_활성사진으로_변경한다() throws Exception {
+        runner.run();
+        assertThat(mainOriginal(1)).isEqualTo(image(1,0));
+        UUID chosen=image(1,2);
+        management.selectOriginalMain(person(1),chosen);
+        runner.run();
+        assertThat(mainOriginal(1)).isEqualTo(chosen);
+        mvc.perform(get("/api/missing-persons/"+person(1)))
+                .andExpect(jsonPath("$.photoUrl").value("/api/missing-persons/"+person(1)+"/images/"+chosen))
+                .andExpect(jsonPath("$.images[0].id").value(image(1,0).toString()));
+        mode="partial";runner.run();assertThat(mainOriginal(1)).isEqualTo(chosen);
+        mode="fewer";runner.run();assertThat(mainOriginal(1)).isEqualTo(image(1,0));
+        mode="noPhotos";runner.run();
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM findus.missing_person_images WHERE is_main",Integer.class)).isZero();
+    }
+
+    @Test void AI는_원본FK와_생성결과만_저장하고_동기화는_AI와_대표선택을_유지한다() throws Exception {
+        runner.run();
+        byte[] generated=png(9,1,false);
+        UUID first=management.saveAiResult(person(1),image(1,2),25,generated);
+        UUID second=management.saveAiResult(person(1),image(1,0),35,png(9,2,false));
+        assertThat(mainAi(1)).isEqualTo(first);
+        assertThat(jdbc.queryForObject("SELECT source_image_id FROM findus.missing_person_ai_images WHERE id=?",UUID.class,first)).isEqualTo(image(1,2));
+        assertThat(jdbc.queryForObject("SELECT content FROM findus.missing_person_ai_images WHERE id=?",byte[].class,first)).isEqualTo(generated);
+        assertThat(jdbc.queryForObject("SELECT byte_size FROM findus.missing_person_ai_images WHERE id=?",Integer.class,first)).isEqualTo(generated.length);
+        assertThat(jdbc.queryForObject("SELECT target_age FROM findus.missing_person_ai_images WHERE id=?",Integer.class,first)).isEqualTo(25);
+        assertThat(visible()).isEqualTo(5);
+        management.selectAiMain(person(1),second);
+        changed=true;mode="fewer";runner.run();
+        assertThat(mainAi(1)).isEqualTo(second);
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM findus.missing_person_ai_images",Integer.class)).isEqualTo(2);
+        assertThat(jdbc.queryForObject("SELECT content FROM findus.missing_person_ai_images WHERE id=?",byte[].class,first)).isEqualTo(generated);
+        // AI 결과는 원본 목록·사진 조회 API에 섞이지 않습니다.
+        mvc.perform(get("/api/missing-persons/"+person(1))).andExpect(jsonPath("$.images.length()").value(2));
+        mvc.perform(get("/api/missing-persons/"+person(1)+"/images/"+first)).andExpect(status().isNotFound());
+        management.deleteAiResult(person(1),second);assertThat(mainAi(1)).isEqualTo(first);
+    }
+
+    @Test void 다른아동_원본과_잘못된_AI결과를_서비스와_DB에서_차단한다() throws Exception {
+        runner.run();UUID owner=person(1),source=image(1,0);
+        assertThatThrownBy(() -> management.saveAiResult(owner,image(2,0),20,png(8,1,false))).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> management.selectOriginalMain(owner,image(2,0))).isInstanceOf(IllegalArgumentException.class);
+        for (int age:new int[]{-1,201}) assertThatThrownBy(() -> management.saveAiResult(owner,source,age,png(8,1,false))).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> management.saveAiResult(owner,source,20,"<html>오류</html>".getBytes())).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> management.saveAiResult(owner,source,20,new byte[10485761])).isInstanceOf(IllegalArgumentException.class);
+        UUID ai=management.saveAiResult(owner,source,20,png(8,1,false));
+        assertThatThrownBy(() -> jdbc.update("UPDATE findus.missing_person_ai_images SET missing_person_id=? WHERE id=?",person(2),ai))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> jdbc.update("UPDATE findus.missing_person_images SET is_main=true WHERE id=?",image(1,1)))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        UUID another=management.saveAiResult(owner,source,30,png(8,2,false));
+        assertThatThrownBy(() -> jdbc.update("UPDATE findus.missing_person_ai_images SET is_main=true WHERE id=?",another))
+                .isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+        assertThatThrownBy(() -> management.selectAiMain(person(2),ai)).isInstanceOf(IllegalArgumentException.class);
+        mode="withdraw";runner.run();
+        assertThatThrownBy(() -> management.saveAiResult(person(2),image(2,0),20,png(8,1,false))).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test void 동시_AI저장과_대표변경은_아동별로_직렬화하고_대표를_한장만_유지한다() throws Exception {
+        runner.run();UUID owner=person(1),source=image(1,0);
+        var pool=java.util.concurrent.Executors.newFixedThreadPool(2);
+        try {
+            var start=new java.util.concurrent.CountDownLatch(1);
+            var first=pool.submit(() -> { start.await();return management.saveAiResult(owner,source,20,png(7,1,false)); });
+            var second=pool.submit(() -> { start.await();return management.saveAiResult(owner,source,30,png(7,2,false)); });
+            start.countDown();UUID a=first.get(15,java.util.concurrent.TimeUnit.SECONDS),b=second.get(15,java.util.concurrent.TimeUnit.SECONDS);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM findus.missing_person_ai_images WHERE is_main",Integer.class)).isEqualTo(1);
+            var x=pool.submit(() -> management.selectAiMain(owner,a));
+            var y=pool.submit(() -> management.selectAiMain(owner,b));
+            x.get(15,java.util.concurrent.TimeUnit.SECONDS);y.get(15,java.util.concurrent.TimeUnit.SECONDS);
+            assertThat(mainAi(1)).isIn(a,b);
+            assertThat(jdbc.queryForObject("SELECT count(*) FROM findus.missing_person_ai_images WHERE is_main",Integer.class)).isEqualTo(1);
+        } finally { pool.shutdownNow(); }
+    }
+
+    @Test void 대표_교체중_DB오류가_나면_이전_대표_해제도_롤백한다() throws Exception {
+        runner.run();UUID owner=person(1),source=image(1,0);
+        UUID before=management.saveAiResult(owner,source,20,png(6,1,false));
+        UUID next=management.saveAiResult(owner,source,30,png(6,2,false));
+        jdbc.execute("ALTER TABLE findus.missing_person_ai_images ADD CONSTRAINT ck_test_ai_main_reject CHECK(NOT is_main) NOT VALID");
+        try {
+            assertThatThrownBy(() -> management.selectAiMain(owner,next)).isInstanceOf(org.springframework.dao.DataIntegrityViolationException.class);
+            assertThat(mainAi(1)).isEqualTo(before);
+        } finally { jdbc.execute("ALTER TABLE findus.missing_person_ai_images DROP CONSTRAINT ck_test_ai_main_reject"); }
+    }
+    UUID mainOriginal(int source) {
+        return jdbc.queryForObject("SELECT i.id FROM findus.missing_person_images i JOIN findus.missing_persons p ON p.id=i.missing_person_id WHERE p.source_id=? AND i.is_main",UUID.class,Integer.toString(source));
+    }
+    UUID mainAi(int source) {
+        return jdbc.queryForObject("SELECT i.id FROM findus.missing_person_ai_images i JOIN findus.missing_persons p ON p.id=i.missing_person_id WHERE p.source_id=? AND i.is_main",UUID.class,Integer.toString(source));
     }
     // endregion
 }
