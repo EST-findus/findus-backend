@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest(properties={"app.missing.esntl-id=test+id","app.missing.auth-key=test&key"})
+@SpringBootTest(properties={"app.missing.esntl-id=test+id","app.missing.auth-key=test&key","app.missing.photo-interval-ms=0"})
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @Testcontainers
@@ -170,8 +170,13 @@ class MissingBatchTests {
     }
     // endregion
 
-    // region 관리자 권한·CSRF·페이지 조건
-    @Test void 일반회원은_배치를_실행할_수_없고_관리자는_실행한다() throws Exception {
+    // region local 외 환경의 관리자 권한·CSRF·페이지 조건
+    @Test void local외_환경에서_관리자와_CSRF만_동기화를_실행한다() throws Exception {
+        mvc.perform(post("/api/admin/missing-sync").with(this::withCsrf)).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/admin/missing-sync")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/admin/other-feature")).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/auth/login").contentType("application/json").content("{}"))
+                .andExpect(status().isForbidden());
         var member=members.save(new Member(UUID.randomUUID()+"@example.test",encoder.encode("Member-test123!"),"테스트","테스트"));
         String token=login(member);
         mvc.perform(post("/api/admin/missing-sync").header("Authorization","Bearer "+token).with(this::withCsrf)).andExpect(status().isForbidden());
@@ -180,7 +185,6 @@ class MissingBatchTests {
         mvc.perform(post("/api/admin/missing-sync").header("Authorization","Bearer "+token)).andExpect(status().isForbidden());
         mvc.perform(post("/api/admin/missing-sync").header("Authorization","Bearer "+token).with(this::withCsrf)).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COMPLETED"));
         mvc.perform(get("/api/admin/missing-sync").header("Authorization","Bearer "+token)).andExpect(status().isOk());
-        mvc.perform(get("/api/admin/missing-sync")).andExpect(status().isUnauthorized());
     }
     @Test void 페이지와_없는_UUID를_검증한다() throws Exception {
         mvc.perform(get("/api/missing-persons?page=-1")).andExpect(status().isBadRequest());

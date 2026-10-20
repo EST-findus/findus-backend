@@ -19,6 +19,8 @@ import tools.jackson.databind.ObjectMapper;
 
 @Component
 public class SafeDreamApiSource implements MissingPersonSource {
+    private final java.util.concurrent.atomic.AtomicInteger requests = new java.util.concurrent.atomic.AtomicInteger();
+    @Override public int requestCount() { return requests.get(); }
     private final MissingProperties properties;
     private final ObjectMapper mapper;
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
@@ -27,13 +29,20 @@ public class SafeDreamApiSource implements MissingPersonSource {
     }
     @Override
     public List<SourcePerson> fetchAll() {
+        return fetchChildren();
+    }
+    // 동기화와 출력 확인 모두 실종아동 분류의 전체 페이지를 요청합니다.
+    public List<SourcePerson> fetchChildren() {
+        return fetch("010");
+    }
+    private List<SourcePerson> fetch(String category) {
         if (properties.esntlId().isBlank() || properties.authKey().isBlank())
             throw new MissingSyncException("안전Dream 인증정보를 설정하세요.");
         var result = new ArrayList<SourcePerson>();
         var identifiers = new HashSet<String>();
         int total = -1;
         for (int page = 1; page <= properties.maxPages(); page++) {
-            JsonNode response = request(page);
+            JsonNode response = request(page, category);
             if (!"00".equals(response.path("result").asText()))
                 throw new MissingSyncException("안전Dream 인증 또는 호출 제한 오류입니다.");
             int nextTotal = response.path("totalCount").asInt(-1);
@@ -53,14 +62,16 @@ public class SafeDreamApiSource implements MissingPersonSource {
         }
         throw new MissingSyncException("수집 페이지 제한을 초과했습니다.");
     }
-    private JsonNode request(int page) {
+    private JsonNode request(int page, String category) {
         String body = "esntlId=" + encode(properties.esntlId()) + "&authKey=" + encode(properties.authKey())
-                + "&rowSize=100&page=" + page;
+                + "&rowSize=100&page=" + page
+                + (category == null ? "" : "&writngTrgetDscds=" + encode(category));
         HttpRequest request = HttpRequest.newBuilder(properties.baseUrl().resolve("/api/lcm/findChildList.do"))
                 .timeout(Duration.ofSeconds(15)).header("Content-Type", "application/x-www-form-urlencoded")
                 .POST(HttpRequest.BodyPublishers.ofString(body)).build();
         for (int attempt = 0; attempt < 3; attempt++) {
             try {
+                requests.incrementAndGet();
                 var response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
                 if (response.statusCode() == 429 || response.statusCode() >= 500) {
                     if (attempt == 2) throw new MissingSyncException("안전Dream 서버에 접속할 수 없습니다.");
@@ -85,7 +96,7 @@ public class SafeDreamApiSource implements MissingPersonSource {
         String category = row.path("writngTrgetDscd").asText("");
         if (!id.matches("[0-9]{1,30}") || name.isBlank() || name.length() > 100 || !category.matches("[0-9]{3}"))
             throw new MissingSyncException("필수 실종자 정보가 누락되었거나 형식이 잘못되었습니다.");
-        // 응답의 사진 내용은 DB에 복제하지 않고 공식 원본 조회 주소만 저장합니다.
+        // 목록 단계에서는 대표 사진 출처만 전달하고, 별도 사진 수집 단계에서 원본을 DB에 저장합니다.
         String photo = row.path("tknphotoFile").asText("").isBlank() ? null
                 : "https://www.safe182.go.kr/api/lcm/imgView.do?msspsnIdntfccd=" + id;
         return new SourcePerson(id,name,category,text(row,"sexdstnDscd"),text(row,"occrde"),

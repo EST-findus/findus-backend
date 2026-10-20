@@ -51,3 +51,18 @@ tasks.named('test') {
 	useJUnitPlatform()
 	systemProperty 'file.encoding', 'UTF-8'
 }
+
+// 확인 화면 코드만 포함하고 실제 데이터 파일·문서는 서버 배포 파일에서 제외합니다.
+tasks.named('processResources') {
+    exclude 'local-preview/*.json', 'local-preview/*.tmp', 'local-preview/*.md', 'local-preview/template.html'
+}
+
+// 기존 명령은 파일을 생성하거나 경찰청에 요청하지 않고 새 DB 확인 주소만 안내합니다.
+tasks.register('safeDreamPreview') {
+    group = 'verification'
+    description = '로컬 DB 실종아동 확인 페이지 주소를 안내합니다 (파일 생성 없음)'
+    doLast {
+        println '백엔드를 local 프로필로 실행한 뒤 http://localhost:18080/test/safe182 를 여세요.'
+        println '이 명령은 경찰청 API를 호출하거나 데이터 파일을 생성하지 않습니다.'
+    }
+}

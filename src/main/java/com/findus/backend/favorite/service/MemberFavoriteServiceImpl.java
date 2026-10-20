@@ -14,6 +14,7 @@ import com.findus.backend.member.entity.Member;
 import com.findus.backend.member.entity.MemberStatus;
 import com.findus.backend.member.repository.MemberRepository;
 import com.findus.backend.missing.repository.MissingPersonRepository;
+import com.findus.backend.missing.service.MissingResponseAssembler;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -29,8 +30,9 @@ public class MemberFavoriteServiceImpl implements MemberFavoriteService {
     private final MemberFavoriteRepository favorites;
     private final MemberRepository members;
     private final MissingPersonRepository missing;
-    public MemberFavoriteServiceImpl(MemberFavoriteRepository favorites,MemberRepository members,MissingPersonRepository missing) {
-        this.favorites=favorites;this.members=members;this.missing=missing;
+    private final MissingResponseAssembler assembler;
+    public MemberFavoriteServiceImpl(MemberFavoriteRepository favorites,MemberRepository members,MissingPersonRepository missing,MissingResponseAssembler assembler) {
+        this.favorites=favorites;this.members=members;this.missing=missing;this.assembler=assembler;
     }
     @Override
     @Transactional
@@ -44,7 +46,7 @@ public class MemberFavoriteServiceImpl implements MemberFavoriteService {
         var favorite=favorites.findIncludingDeleted(memberId,missingPersonId)
                 .orElseGet(() -> new MemberFavorite(member,person));
         if (favorite.isDeleted()) favorite.reactivate();
-        return FavoriteResponse.from(favorites.save(favorite));
+        return FavoriteResponse.from(favorites.save(favorite),assembler.from(person));
     }
     @Override
     @Transactional
@@ -62,8 +64,11 @@ public class MemberFavoriteServiceImpl implements MemberFavoriteService {
         for (var order:sort) if (!SORT_FIELDS.contains(order.getProperty())) throw new FavoritePageException();
         if (sort.isUnsorted()) sort=Sort.by(Sort.Direction.DESC,"createdAt");
         if (sort.getOrderFor("id")==null) sort=sort.and(Sort.by(Sort.Direction.DESC,"id"));
-        return FavoritePageResponse.from(favorites.findActive(memberId,
-                PageRequest.of(pageable.getPageNumber(),pageable.getPageSize(),sort)).map(FavoriteResponse::from));
+        var page=favorites.findActive(memberId,PageRequest.of(pageable.getPageNumber(),pageable.getPageSize(),sort));
+        var people=page.getContent().stream().map(MemberFavorite::getMissingPerson)
+                .filter(p -> !p.isDeleted() && p.isSourceAvailable() && "010".equals(p.getCategory())).toList();
+        var children=assembler.fromAll(people);
+        return FavoritePageResponse.from(page.map(f -> FavoriteResponse.from(f,children.get(f.getMissingPerson().getId()))));
     }
     private Member activeMember(UUID id,boolean lock) {
         var member=(lock ? members.findByIdForUpdate(id) : members.findById(id)).orElseThrow(AuthException::new);
