@@ -179,7 +179,11 @@ class MemberFavoriteTests {
         assertThat(ids).hasSize(5);
         var statistics=entityManagerFactory.unwrap(org.hibernate.SessionFactory.class).getStatistics();statistics.clear();
         favorites.findMine(member.getId(),PageRequest.of(0,5));
-        assertThat(statistics.getPrepareStatementCount()).isBetween(1L,3L);
+        // 사진 메타데이터를 한 번에 조회하는 쿼리 1개가 추가되어도 N+1은 발생하지 않습니다.
+        assertThat(statistics.getPrepareStatementCount()).isBetween(1L,4L);
+        statistics.clear();
+        favorites.findMine(member.getId(),PageRequest.of(0,2));
+        assertThat(statistics.getPrepareStatementCount()).isBetween(1L,4L);
     }
     @Test void 잘못된_정렬_크기_UUID를_거절한다() throws Exception {
         var member=member();String token=login(member);

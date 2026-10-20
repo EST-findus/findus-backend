@@ -376,21 +376,29 @@ curl.exe -u prometheus http://localhost:19081/actuator/prometheus
 
 ## 🔄 안전Dream 실종자 수집·동기화
 
-Spring Batch가 전체 공개 데이터를 100건씩 조회해 신규 정보를 추가하고 변경된 정보를 갱신합니다. 경찰청 식별자 `sourceId`는 중복되지 않고, 우리 DB의 `id`는 UUID입니다. 기존 회원·게시글·댓글과 별도 테이블을 사용합니다.
+📖 팀원용 최초 설정·테스트 순서·예상 시간은 Documents 저장소의 [실종아동 로컬 테스트 가이드](https://github.com/EST-findus/documents/blob/main/guides/safedream-local-test.md)를 참고하세요.
+
+**DB 데이터·사진 확인 페이지:** 백엔드를 `local` 프로필로 실행한 뒤 [실종아동 DB 확인](http://localhost:18080/test/safe182)을 엽니다. 회원가입·로그인 없이 이용할 수 있습니다.
+
+1. 처음 페이지를 열면 로컬 DB만 조회합니다. DB가 비어 있으면 0명으로 표시됩니다.
+2. ‘경찰청 동기화 → DB 저장’을 누르거나 `curl -X POST http://localhost:18080/api/admin/missing-sync`를 실행합니다. `.env`의 경찰청 인증정보가 필요하며 완료까지 수 분 걸릴 수 있습니다.
+3. 페이지 버튼으로 실행하면 저장 후 자동 재조회합니다. curl로 실행했다면 ‘DB 새로고침’을 누릅니다.
+4. 한 페이지에 10명, 페이지 번호는 10개씩 표시합니다. 아동별 DB 사진 전체를 표시하며 없으면 ‘저장된 사진 없음’, 읽지 못하면 ‘사진 조회 실패’로 표시합니다.
+5. 브라우저를 새로고침하거나 페이지를 이동해도 경찰청에 재요청하지 않습니다. 화면의 DB UUID와 SQL 조회 결과를 비교할 수 있습니다.
+
+HTML에는 개인정보·사진·인증키가 없으며 같은 서버의 조회 API로 표시합니다. `file://` 직접 열기는 지원하지 않고 서버 주소를 안내합니다. `./gradlew safeDreamPreview`도 이제 주소만 안내하며 데이터를 수집하거나 HTML·JSON을 생성하지 않습니다. 확인 페이지는 `local` 프로필에서만 제공합니다. [상세 안내](src/main/resources/local-preview/README.md)를 참고하세요.
+
+Spring Batch가 실종아동 원본 분류 `010`의 전체 공개 데이터를 100건씩 조회해 신규 정보를 추가하고 변경된 정보를 갱신합니다. 경찰청 식별자 `sourceId`는 중복되지 않고, 우리 DB의 `id`는 UUID입니다. 기존 회원·게시글·댓글과 별도 테이블을 사용합니다.
 
 **1.** `.env`에 `SAFE182_ESNTL_ID`, `SAFE182_AUTH_KEY`를 설정하고 서버를 재시작합니다. 실제 인증값은 Git·스크린샷·로그에 남기지 마세요. URL 기본값은 `https://www.safe182.go.kr`입니다.
 
-**2.** 수동 실행할 회원을 관리자(USER → ADMIN)로 지정합니다. 아래 SQL의 이메일을 본인 계정으로 바꾼 후 개발 DB에서만 실행하세요. 더미 회원은 기본 USER이므로 배치 실행 권한이 없습니다.
+**2.** MVP 단계에서는 회원가입·로그인·Authorize·CSRF 준비 없이 동기화를 실행할 수 있습니다. **배포 전에는 `SecurityConfig`의 해당 POST·GET 규칙을 `hasRole("ADMIN")`으로 변경하고, 동기화 POST의 CSRF 예외를 제거하며 Swagger의 관리자 인증 요구도 복원해야 합니다.**
 
-```sql
-UPDATE findus.members SET role = 'ADMIN' WHERE email = '본인 이메일';
-```
-
-**3.** Swagger에서 `GET /api/auth/csrf` → 로그인 → Authorize → **실종자 배치 / POST /api/admin/missing-sync**를 실행합니다. 요청 완료 후 `executionId`, `status`, `counts`를 확인합니다. 성공은 `COMPLETED`, 실패는 `FAILED`입니다. 시작 자체가 실패하면 503을 반환합니다.
+**3.** Swagger에서 바로 **실종자 배치 / POST /api/admin/missing-sync**를 실행합니다. 요청 본문·인증 헤더는 필요 없습니다. 이전에 Authorize에 입력한 토큰이 만료됐다면 Logout으로 지운 뒤 실행합니다. 요청 완료 후 `executionId`, `status`, `counts`를 확인합니다. 성공은 `COMPLETED`, 실패는 `FAILED`입니다. 시작 자체가 실패하면 503을 반환합니다. 터미널에서는 `curl -X POST http://localhost:18080/api/admin/missing-sync`로 실행할 수 있습니다.
 
 **4.** `GET /api/missing-persons?page=0&size=10`으로 목록을, 응답의 `id`를 사용해 `GET /api/missing-persons/{id}`로 상세를 조회합니다. 조회에는 로그인이 필요 없습니다. 응답의 `category`는 원본 코드(010: 아동, 060/061/062: 지적장애인, 070: 치매 등)를 유지합니다. 현재 API 공개 범위가 모든 성인 실종자를 포함한다고 가정하지 않습니다.
 
-**5.** 관리자 `GET /api/admin/missing-sync`에서 최근 실행 상태·시간을 확인합니다. 처리 건수는 수동 실행 응답과 Spring Batch 실행 컨텍스트에 보관합니다.
+**5.** `GET /api/admin/missing-sync`에서 최근 실행 상태·시간을 확인합니다. 처리 건수는 수동 실행 응답과 Spring Batch 실행 컨텍스트에 보관합니다.
 
 | 설정 | 동작 |
 | --- | --- |
@@ -398,13 +406,19 @@ UPDATE findus.members SET role = 'ADMIN' WHERE email = '본인 이메일';
 | `MISSING_SCHEDULE_ENABLED=true` | 한국 시간 04:00·16:00 예약 실행 |
 | `MISSING_SYNC_CRON` | 필요한 경우 Spring 형식 예약식 변경 |
 
-배포 시 서버 환경변수에 `SPRING_PROFILES_ACTIVE=prod`, 인증정보와 `MISSING_SCHEDULE_ENABLED=true`를 설정합니다. 예약 시각에 서버가 실행 중이어야 하며, 꺼진 동안 놓친 예약은 자동 소급 실행되지 않습니다. 관리자 수동 실행으로 보완합니다. 서버 시작 때 자동 수집하지 않습니다.
+배포 시 서버 환경변수에 `SPRING_PROFILES_ACTIVE=prod`, 인증정보와 `MISSING_SCHEDULE_ENABLED=true`를 설정합니다. 예약 시각에 서버가 실행 중이어야 하며, 꺼진 동안 놓친 예약은 자동 소급 실행되지 않습니다. 수동 실행으로 보완합니다. 서버 시작 때 자동 수집하지 않습니다.
 
 전체 페이지의 건수·식별자를 검증한 뒤 한 트랜잭션으로 반영합니다. 페이지 누락·인증 오류·수집 중 전체 건수 변경·DB 오류는 기존 데이터를 유지합니다. 일시적인 통신 오류·429·5xx는 페이지당 최대 3회 요청하며 1초·2초 간격으로 재시도합니다. 최대 50페이지(5,000건)를 초과하면 자동 반영하지 않으며 제한 설정은 `app.missing.max-pages`입니다. 전체 0건 응답도 데이터 보호를 위해 실패로 처리하므로 실제 공개 데이터가 0건이 된 경우 관리자 확인이 필요합니다.
 
 최근 전체 수집에서 사라진 정보는 `source_available=false`로 표시하고 공개 조회에서 제외합니다. DB 행은 보존하며 **발견 완료로 판단하지 않습니다.** 이후 다시 공개되면 같은 UUID로 복구됩니다. 동시 실행은 PostgreSQL 잠금으로 중복 수집·반영을 막습니다.
 
-**사진 저장:** DB에는 `photo_url`만 저장합니다. API가 보내는 사진 내용은 보관하지 않습니다. 프론트는 이 주소로 경찰청 원본 사진을 표시할 수 있으며 안전Dream 장애·원본 삭제 시 사진도 표시되지 않을 수 있습니다. 사진 주소 자체는 원본 API에서 얻은 실종자 식별자로 구성합니다. 외부 사진 파일을 우리 DB나 S3에 복제하는 기능은 포함하지 않습니다.
+**사진 저장:** Flyway V9가 `findus.missing_person_images`를 생성합니다. `missing_person_id` 외래키로 실종자와 1:N 연결하고 사진 순번·출처 URL·MIME 형식·크기·SHA-256·사진 BYTEA를 저장합니다. 출처 사진 URL은 세션에 의존하므로 직접 표시하지 않습니다. 아동별 쿠키 세션에서 상세 페이지를 연 뒤 실제로 나열된 사진만 내려받아 저장합니다. 사진 파일은 최대 2MB이며 일시적인 사진 오류는 같은 세션에서 한 번 재시도합니다. 재시도도 실패하면 기존 사진을 유지합니다. 정상 전체 목록에서 사라진 사진은 소프트 삭제하고 다시 나타나면 같은 UUID로 복원합니다.
+
+**수동 실행 주소:** `POST http://localhost:18080/api/admin/missing-sync` (MVP: 비회원 허용, JWT·CSRF·요청 본문 없음). 같은 작업을 새벽 04시·16시 예약에서도 사용합니다. 아동별 사진 수신으로 완료까지 수 분 걸릴 수 있으므로 클라이언트 요청 제한 시간을 충분히 지정합니다. 수동 실행 응답의 `imagesSaved`는 수신·반영한 사진 수, `photoFailures`는 사진을 전부 확인하지 못한 아동 수입니다. 부분 사진 실패만 있으면 실종자 데이터와 정상 사진은 반영하고 기존 사진은 보존합니다. 전체 데이터 API 실패나 DB 오류는 전체 변경을 롤백합니다.
+
+**조회:** `GET /api/missing-persons`와 `GET /api/missing-persons/{id}` 응답의 `images`는 이미지 UUID·순서·백엔드 기준 상대 URL·형식·크기를 포함합니다. 기존 `photoUrl` 필드는 대표 사진 URL로 유지합니다. 프론트에서는 상대 URL 앞에 백엔드 주소 또는 프록시 경로를 붙입니다. `GET /api/missing-persons/{id}/images/{imageId}`는 DB 사진을 쿠키 없이 반환합니다. 다른 아동의 사진, 삭제 사진, 공개 중단·삭제된 아동 사진은 404이며 캐시 저장을 금지합니다. 관심아동 응답에도 같은 이미지 정보를 포함합니다. 이미지 목록 조회는 BYTEA를 제외한 메타데이터만 한 번에 조회합니다.
+
+**요청 수:** 정상 실행은 `ceil(아동 수/100)`회 목록 API + 아동당 상세 1회 + 사진당 다운로드 1회입니다. 168명·337장이면 `2 + 168 + 337 = 507`회입니다. 인증키를 사용하는 공개 목록 API 요청은 이 중 2회이며 나머지는 일반 웹 상세·사진 요청입니다. 재시도·대표 사진 대체 요청은 추가됩니다. 실제 성공 실행 응답의 `counts.requests`에 `api`, `detail`, `image`, `total`을 기록합니다. 일반 웹 요청의 운영 제한이 공개 API와 같다고 가정하지 않습니다. 상세 사진 경로는 공식 API 계약 대상이 아니므로 사이트 변경 시 대응이 필요합니다.
 
 Grafana의 **FindUs 실종자 배치**에서 마지막 성공 이후 경과 시간·실행 성공/실패·처리 건수·실행 시간을 확인합니다. 실행 카운터는 서버 재시작 시 초기화되지만 Batch 이력과 마지막 수집 시각은 DB에 유지됩니다.
 
@@ -422,7 +436,7 @@ Grafana의 **FindUs 실종자 배치**에서 마지막 성공 이후 경과 시�
 | DELETE | `/api/members/me/favorites/{missingPersonId}` | 내 관심 취소 |
 | GET | `/api/members/me/favorites?page=0&size=10` | 내 관심 목록 |
 
-**1.** 서버를 재시작해 Flyway V8을 적용합니다. 실종자 데이터가 없다면 관리자 수동 배치로 먼저 수집합니다.
+**1.** 서버를 재시작해 Flyway V8을 적용합니다. 실종자 데이터가 없다면 수동 배치로 먼저 수집합니다.
 
 **2.** Swagger에서 `GET /api/auth/csrf` → 로그인 → Authorize 순서로 준비합니다. 모든 관심 API는 JWT가 필요하고 PUT·DELETE는 CSRF도 필요합니다.
 

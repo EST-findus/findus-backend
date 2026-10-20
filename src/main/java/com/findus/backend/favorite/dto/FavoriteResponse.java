@@ -14,10 +14,13 @@ public record FavoriteResponse(
         @Schema(description="AVAILABLE: 조회 가능, UNAVAILABLE: 공개 중단 또는 삭제, NOT_CHILD: 아동 분류에서 변경") FavoriteAvailability availability,
         @Schema(description="조회 가능한 아동만 포함하는 공개 정보. 이용 불가 시 null") MissingPersonResponse child) {
     public static FavoriteResponse from(MemberFavorite favorite) {
+        return from(favorite,MissingPersonResponse.from(favorite.getMissingPerson()));
+    }
+    public static FavoriteResponse from(MemberFavorite favorite,MissingPersonResponse child) {
         var person=favorite.getMissingPerson();
         var availability=person.isDeleted() || !person.isSourceAvailable() ? FavoriteAvailability.UNAVAILABLE
                 : !"010".equals(person.getCategory()) ? FavoriteAvailability.NOT_CHILD : FavoriteAvailability.AVAILABLE;
         return new FavoriteResponse(favorite.getId(),person.getId(),favorite.getCreatedAt(),availability,
-                availability==FavoriteAvailability.AVAILABLE ? MissingPersonResponse.from(person) : null);
+                availability==FavoriteAvailability.AVAILABLE ? child : null);
     }
 }

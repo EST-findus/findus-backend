@@ -40,11 +40,18 @@ public class SecurityConfig {
 						.csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler())
 						// 가입은 쿠키 인증을 사용하지 않는 공개 API입니다.
 						.ignoringRequestMatchers(request -> request.getMethod().equals("POST")
-								&& request.getRequestURI().equals(request.getContextPath() + "/api/members")))
+								&& request.getRequestURI().equals(request.getContextPath() + "/api/members"))
+						// TODO 배포 전: 이 예외를 제거해 동기화 POST에도 CSRF 검증을 복원합니다.
+						.ignoringRequestMatchers(request -> request.getMethod().equals("POST")
+								&& request.getRequestURI().equals(request.getContextPath() + "/api/admin/missing-sync")))
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.requestCache(cache -> cache.disable())
 				.formLogin(form -> form.disable()).httpBasic(basic -> basic.disable()).logout(logout -> logout.disable())
 				.authorizeHttpRequests(auth -> {
+					// DB 확인 화면은 로컬 프로필에서만 비회원에게 제공합니다.
+					if (environment.acceptsProfiles(Profiles.of("local"))) {
+						auth.requestMatchers(HttpMethod.GET, "/test/safe182").permitAll();
+					}
 					// 더미 생성은 로컬에서 기능을 켠 경우만 공개하며 CSRF 검증은 유지합니다.
                     if (environment.acceptsProfiles(Profiles.of("local"))
                             && environment.getProperty("app.dummy.enabled", Boolean.class, false)) {
@@ -58,7 +65,11 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.POST, "/api/members", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/auth/csrf", "/health").permitAll()
 						// 게시글 조회만 공개하며 POST·PUT·DELETE는 아래 인증 규칙을 적용합니다.
-						.requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/*", "/api/posts/*/comments", "/api/missing-persons", "/api/missing-persons/*").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/*", "/api/posts/*/comments", "/api/missing-persons", "/api/missing-persons/*", "/api/missing-persons/*/images/*").permitAll()
+						// TODO 배포 전: 아래 동기화 실행·이력 조회를 hasRole("ADMIN")으로 변경해 관리자만 허용합니다.
+						// MVP 테스트 중에는 회원가입·로그인 없이 동기화를 실행하고 이력을 조회할 수 있습니다.
+						.requestMatchers(HttpMethod.POST, "/api/admin/missing-sync").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/admin/missing-sync").permitAll()
 						.requestMatchers("/api/admin/**").hasRole("ADMIN")
 						.anyRequest().authenticated();
 				})

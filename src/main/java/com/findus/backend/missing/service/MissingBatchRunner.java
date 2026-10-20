@@ -3,6 +3,7 @@ package com.findus.backend.missing.service;
 import java.util.UUID;
 import com.findus.backend.missing.dto.BatchRunResponse;
 import com.findus.backend.missing.dto.SyncCounts;
+import com.findus.backend.missing.dto.SyncRequests;
 import com.findus.backend.missing.exception.MissingSyncException;
 import org.springframework.batch.core.launch.JobOperator;
 import org.springframework.batch.core.job.Job;
@@ -21,7 +22,9 @@ public class MissingBatchRunner {
             var counts=new SyncCounts(0,0,0,0);
             for (var step:execution.getStepExecutions()) {
                 var c=step.getExecutionContext();
-                counts=new SyncCounts(c.getInt("received",0),c.getInt("inserted",0),c.getInt("updated",0),c.getInt("unavailable",0));
+                counts=new SyncCounts(c.getInt("received",0),c.getInt("inserted",0),c.getInt("updated",0),c.getInt("unavailable",0),
+                        c.getInt("imagesSaved",0),c.getInt("photoFailures",0),
+                        new SyncRequests(c.getInt("apiRequests",0),c.getInt("detailRequests",0),c.getInt("imageRequests",0)));
             }
             return new BatchRunResponse(execution.getId(),execution.getStatus().name(),counts);
         } catch (Exception e) { throw new MissingSyncException("배치 실행을 시작할 수 없습니다."); }

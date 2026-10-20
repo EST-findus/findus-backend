@@ -125,3 +125,7 @@ dump.rdb
 appendonly.aof
 appendonlydir/
 /coverage/
+
+# 실제 경찰청 데이터 출력 결과와 임시 파일
+/src/main/resources/local-preview/*.json
+/src/main/resources/local-preview/*.tmp

@@ -24,6 +24,11 @@ public class MissingBatchConfig {
             execution.getExecutionContext().putInt("inserted",counts.inserted());
             execution.getExecutionContext().putInt("updated",counts.updated());
             execution.getExecutionContext().putInt("unavailable",counts.unavailable());
+            execution.getExecutionContext().putInt("imagesSaved",counts.imagesSaved());
+            execution.getExecutionContext().putInt("photoFailures",counts.photoFailures());
+            execution.getExecutionContext().putInt("apiRequests",counts.requests().api());
+            execution.getExecutionContext().putInt("detailRequests",counts.requests().detail());
+            execution.getExecutionContext().putInt("imageRequests",counts.requests().image());
             return RepeatStatus.FINISHED;
         },transactionManager).build();
     }
