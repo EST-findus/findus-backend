@@ -26,11 +26,13 @@ public class MissingSyncServiceImpl implements MissingSyncService {
     private final MissingPersonImageRepository images;
     private final MissingProperties properties;
     private final long interval;
+    private final MissingImageManagementService imageManagement;
     private static final Pattern INDEX=Pattern.compile("[?&]tknphotoFileIdx=([0-9]+)");
     public MissingSyncServiceImpl(MissingPersonSource source,MissingPersonRepository repository,
             MissingPersonImageRepository images,MissingProperties properties,
-            @Value("${app.missing.photo-interval-ms:250}") long interval) {
+            @Value("${app.missing.photo-interval-ms:250}") long interval,MissingImageManagementService imageManagement) {
         this.source=source;this.repository=repository;this.images=images;this.properties=properties;this.interval=Math.max(0,interval);
+        this.imageManagement=imageManagement;
     }
     @Override
     @Transactional
@@ -75,7 +77,9 @@ public class MissingSyncServiceImpl implements MissingSyncService {
             }
             var previous=images.findForSync(person.getId());
             // 상세 조회 실패 시 기존 다중 사진을 대표 사진 하나로 덮어쓰지 않습니다.
-            if (photos.status().equals("API_FALLBACK") && previous.stream().anyMatch(p -> !p.isDeleted())) continue;
+            if (photos.status().equals("API_FALLBACK") && previous.stream().anyMatch(p -> !p.isDeleted())) {
+                imageManagement.ensureOriginalMain(person.getId());continue;
+            }
             var byOrder=new HashMap<Integer,MissingPersonImage>();
             previous.forEach(p -> byOrder.put(p.getSortOrder(),p));
             var orders=new HashSet<Integer>();
@@ -93,6 +97,7 @@ public class MissingSyncServiceImpl implements MissingSyncService {
                 image.softDelete();saved.add(image);
             }
             if (!saved.isEmpty()) images.saveAll(saved);
+            imageManagement.ensureOriginalMain(person.getId());
             if (++processed%20==0) log.info("실종아동 사진 동기화: {}/{}",processed,incoming.size());
         }
         return new SyncCounts(incoming.size(),inserted,updated,unavailable,imagesSaved,photoFailures,
