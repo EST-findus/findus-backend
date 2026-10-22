@@ -15,6 +15,6 @@ interface MissingPersonJpaRepository extends JpaRepository<MissingPerson,UUID> {
     @org.springframework.data.jpa.repository.Query("select p from MissingPerson p where p.id = :id and p.deletedAt is null")
     Optional<MissingPerson> findForFavorite(@org.springframework.data.repository.query.Param("id") UUID id);
 
-    Page<MissingPerson> findAllBySourceAvailableTrueAndDeletedAtIsNull(Pageable pageable);
+    Page<MissingPerson> findAllBySourceAvailableTrueAndDeletedAtIsNullAndOccurrenceDateLessThanEqual(String cutoff,Pageable pageable);
     Optional<MissingPerson> findByIdAndSourceAvailableTrueAndDeletedAtIsNull(UUID id);
 }

@@ -22,6 +22,6 @@ public class MissingPersonRepositoryImpl implements MissingPersonRepository {
         // 실제 동기화 트랜잭션 동안만 잠가 서버 여러 대의 중복 반영을 막습니다.
         return Boolean.TRUE.equals(jdbc.queryForObject("SELECT pg_try_advisory_xact_lock(72810302)",Boolean.class));
     }
-    @Override public Page<MissingPerson> findAvailable(Pageable page) { return jpa.findAllBySourceAvailableTrueAndDeletedAtIsNull(page); }
+    @Override public Page<MissingPerson> findAvailable(String occurredOnOrBefore,Pageable page) { return jpa.findAllBySourceAvailableTrueAndDeletedAtIsNullAndOccurrenceDateLessThanEqual(occurredOnOrBefore,page); }
     @Override public Optional<MissingPerson> findAvailable(UUID id) { return jpa.findByIdAndSourceAvailableTrueAndDeletedAtIsNull(id); }
 }
