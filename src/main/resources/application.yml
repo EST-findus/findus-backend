@@ -71,6 +71,14 @@ app:
     max-pages: 50
     schedule-enabled: ${MISSING_SCHEDULE_ENABLED:false}
     cron: ${MISSING_SYNC_CRON:0 0 4,16 * * *}
+  # 관리자 뉴스 승인용 네이버 검색. 키가 비어 있으면 검색 API만 503을 반환합니다.
+  news:
+    naver:
+      provider: ${NAVER_API_PROVIDER:hub}
+      client-id: ${NAVER_CLIENT_ID:}
+      client-secret: ${NAVER_CLIENT_SECRET:}
+      default-query: ${NAVER_NEWS_QUERY:장기 실종아동}
+      display: ${NAVER_NEWS_DISPLAY:10}
   auth:
     secret: ${JWT_SECRET}
     issuer: findus

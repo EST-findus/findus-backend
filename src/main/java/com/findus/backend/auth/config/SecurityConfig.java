@@ -69,7 +69,7 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.POST, "/api/members", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/auth/csrf", "/health").permitAll()
 						// 게시글 조회만 공개하며 POST·PUT·DELETE는 아래 인증 규칙을 적용합니다.
-						.requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/*", "/api/posts/*/comments", "/api/missing-persons", "/api/missing-persons/*", "/api/missing-persons/*/images/*").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/*", "/api/posts/*/comments", "/api/missing-persons", "/api/missing-persons/*", "/api/missing-persons/*/images/*", "/api/news").permitAll()
 						// local 외 환경에서는 동기화도 관리자 권한과 CSRF 검증을 유지합니다.
 						.requestMatchers("/api/admin/**").hasRole("ADMIN")
 						.anyRequest().authenticated();
