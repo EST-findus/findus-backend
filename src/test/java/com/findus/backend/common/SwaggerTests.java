@@ -57,6 +57,13 @@ class SwaggerTests {
         var doc=(tools.jackson.databind.node.ObjectNode)mapper.readTree(result.getResponse().getContentAsString());
         // 테스트 실행 주소만 제외하고 경로·요청·응답 스키마·설명 전체를 비교합니다.
         doc.remove("servers");
+        // 이후 추가한 뉴스 API는 기준 문서에 없으므로 제외하고 기존 문서만 비교합니다.
+        var paths=(tools.jackson.databind.node.ObjectNode)doc.path("paths");
+        paths.remove(paths.properties().stream().map(java.util.Map.Entry::getKey).filter(path -> path.contains("/news")).toList());
+        var schemas=(tools.jackson.databind.node.ObjectNode)doc.path("components").path("schemas");
+        schemas.remove(schemas.properties().stream().map(java.util.Map.Entry::getKey).filter(name -> name.startsWith("News") || name.equals("JsonNode")).toList());
+        if (doc.path("tags") instanceof tools.jackson.databind.node.ArrayNode tags)
+            for (int i=tags.size()-1;i>=0;i--) if (tags.get(i).path("name").asString().startsWith("뉴스")) tags.remove(i);
         try (var baseline=getClass().getResourceAsStream("/contracts/openapi-before-ai-images.json")) {
             assertThat(baseline).isNotNull();
             assertThat(doc).isEqualTo(mapper.readTree(baseline));

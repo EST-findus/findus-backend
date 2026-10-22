@@ -34,6 +34,11 @@ public class ApiExceptionHandler {
         return ResponseEntity.badRequest().body(ApiErrorResponse.of("INVALID_REQUEST", "관심아동 페이지 또는 정렬 조건을 확인하세요."));
     }
 
+    @ExceptionHandler(com.findus.backend.news.exception.NewsException.class)
+    public ResponseEntity<ApiErrorResponse> news(com.findus.backend.news.exception.NewsException e) {
+        return ResponseEntity.status(e.status()).body(ApiErrorResponse.of(e.code(),e.getMessage()));
+    }
+
     @ExceptionHandler(com.findus.backend.missing.exception.MissingSyncException.class)
     public ResponseEntity<ApiErrorResponse> missingSyncFailed() {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiErrorResponse.of(
@@ -123,6 +128,10 @@ public class ApiExceptionHandler {
 			if (cause instanceof ConstraintViolationException constraint
 					&& "uk_members_email".equals(constraint.getConstraintName())) {
 				return duplicateEmail();
+			}
+			if (cause instanceof ConstraintViolationException constraint
+					&& "uk_news_articles_original_url".equals(constraint.getConstraintName())) {
+				return news(com.findus.backend.news.service.NewsServiceImpl.duplicate());
 			}
 		}
 		return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiErrorResponse.of(
