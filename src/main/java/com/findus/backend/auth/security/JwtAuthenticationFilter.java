@@ -55,6 +55,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				SecurityContextHolder.getContext().setAuthentication(authentication);
 			} catch (JwtException | IllegalArgumentException | AuthException exception) {
 				SecurityContextHolder.clearContext();
+				// 문의 접수는 비회원도 가능하므로 토큰이 무효하면 비회원으로 이어서 처리합니다.
+				if (request.getMethod().equals("POST")
+						&& request.getRequestURI().equals(request.getContextPath() + "/api/inquiries")) {
+					chain.doFilter(request, response);
+					return;
+				}
 				errors.write(response, 401, "UNAUTHORIZED", "인증 정보가 올바르지 않거나 만료되었습니다.");
 				return;
 			} catch (DataAccessException exception) {

@@ -41,6 +41,9 @@ public class SecurityConfig {
 						// 가입은 쿠키 인증을 사용하지 않는 공개 API입니다.
 						.ignoringRequestMatchers(request -> request.getMethod().equals("POST")
 								&& request.getRequestURI().equals(request.getContextPath() + "/api/members"))
+						// 문의 접수도 비회원 공개 API이며 프론트 서버가 서버 간 호출로 전달합니다.
+						.ignoringRequestMatchers(request -> request.getMethod().equals("POST")
+								&& request.getRequestURI().equals(request.getContextPath() + "/api/inquiries"))
 						// TODO 배포 전: 이 예외를 제거해 동기화 POST에도 CSRF 검증을 복원합니다.
 						.ignoringRequestMatchers(request -> environment.acceptsProfiles(Profiles.of("local"))
 								&& request.getMethod().equals("POST")
@@ -66,7 +69,7 @@ public class SecurityConfig {
 							"/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs", "/v3/api-docs/**",
 							"/v3/api-docs.yaml").permitAll();
 					auth
-						.requestMatchers(HttpMethod.POST, "/api/members", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
+						.requestMatchers(HttpMethod.POST, "/api/members", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout", "/api/inquiries").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/auth/csrf", "/health").permitAll()
 						// 게시글 조회만 공개하며 POST·PUT·DELETE는 아래 인증 규칙을 적용합니다.
 						.requestMatchers(HttpMethod.GET, "/api/posts", "/api/posts/*", "/api/posts/*/comments", "/api/missing-persons", "/api/missing-persons/*", "/api/missing-persons/*/images/*", "/api/news").permitAll()
