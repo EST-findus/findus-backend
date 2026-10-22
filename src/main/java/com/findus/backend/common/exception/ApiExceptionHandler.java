@@ -39,6 +39,11 @@ public class ApiExceptionHandler {
         return ResponseEntity.status(e.status()).body(ApiErrorResponse.of(e.code(),e.getMessage()));
     }
 
+    @ExceptionHandler(com.findus.backend.inquiry.exception.InquiryException.class)
+    public ResponseEntity<ApiErrorResponse> inquiry(com.findus.backend.inquiry.exception.InquiryException e) {
+        return ResponseEntity.status(e.status()).body(new ApiErrorResponse(e.code(), e.getMessage(), e.errors()));
+    }
+
     @ExceptionHandler(com.findus.backend.missing.exception.MissingSyncException.class)
     public ResponseEntity<ApiErrorResponse> missingSyncFailed() {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(ApiErrorResponse.of(

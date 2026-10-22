@@ -68,7 +68,7 @@ class MissingImageSyncTests {
         } catch (Exception e) { throw new IllegalStateException(e); }
     }
     static String row(int id) {
-        return "{\"msspsnIdntfccd\":\""+id+"\",\"nm\":\"가상아동"+id+"\",\"writngTrgetDscd\":\"010\""+(mode.equals("noPhotos")?"":",\"tknphotoFile\":\"있음\"")+"}";
+        return "{\"msspsnIdntfccd\":\""+id+"\",\"nm\":\"가상아동"+id+"\",\"writngTrgetDscd\":\"010\",\"occrde\":\"20200101\""+(mode.equals("noPhotos")?"":",\"tknphotoFile\":\"있음\"")+"}";
     }
     static byte[] png(int person,int index,boolean edited) throws java.io.IOException {
         var image=new java.awt.image.BufferedImage(2,2,java.awt.image.BufferedImage.TYPE_INT_RGB);
