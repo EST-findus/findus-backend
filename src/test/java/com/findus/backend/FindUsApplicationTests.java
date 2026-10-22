@@ -114,7 +114,7 @@ class FindUsApplicationTests {
 		assertThat(jdbcTemplate.queryForObject(
 				"SELECT count(*) FROM information_schema.tables WHERE table_schema = 'findus' AND table_name = 'posts'",
 				Integer.class)).isEqualTo(1);
-		assertThat(flyway.info().current().getVersion().toString()).isEqualTo("10");
+		assertThat(flyway.info().current().getVersion().toString()).isEqualTo("11");
 		// 다시 실행해도 이미 적용한 마이그레이션 수는 0이어야 합니다.
 		flyway.validate();
 		assertThat(flyway.migrate().migrationsExecuted).isZero();
@@ -134,12 +134,12 @@ class FindUsApplicationTests {
 						"--spring.data.redis.host=" + REDIS.getHost(),
 						"--spring.data.redis.port=" + REDIS.getMappedPort(6379),
 						"--spring.data.redis.password=" + REDIS_PASSWORD)) {
-			// V1~V10을 다시 적용하지 않고 기존 public 이력 열 건을 사용하는지 확인합니다.
+			// V1~V11을 다시 적용하지 않고 기존 public 이력 열한 건을 사용하는지 확인합니다.
 			assertThat(restarted.getBean(Flyway.class).info().current().getVersion().toString())
-					.isEqualTo("10");
+					.isEqualTo("11");
 			assertThat(restarted.getBean(JdbcTemplate.class).queryForObject(
 					"SELECT count(*) FROM public.flyway_schema_history WHERE success", Integer.class))
-					.isEqualTo(10);
+					.isEqualTo(11);
 		}
 	}
 

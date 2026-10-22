@@ -6,6 +6,11 @@ spring:
     import:
       - "optional:file:./findus-backend/.env[.properties]"
       - "optional:file:./.env[.properties]"
+  # AI 작업 저장 API가 받는 결과 사진(최대 10MB)과 연결 정보를 함께 받을 수 있게 합니다.
+  servlet:
+    multipart:
+      max-file-size: 11MB
+      max-request-size: 12MB
 
 # 로컬 HTTP 개발에서만 Secure 쿠키를 해제합니다. 배포 시에는 HTTPS를 사용합니다.
 app:
@@ -20,6 +25,9 @@ app:
       enabled: true
       prometheus-url: ${PROMETHEUS_URL:http://localhost:19090}
       grafana-url: ${GRAFANA_URL:http://localhost:13000}
+  # Python AI 작업 화면의 저장 API. 이 PC의 서버 간 요청만 받으며 명시적으로 켰을 때만 등록합니다.
+  aiworkbench:
+    enabled: ${AI_WORKBENCH_ENABLED:false}
   auth:
     cookie-secure: ${AUTH_COOKIE_SECURE:false}
   monitoring:

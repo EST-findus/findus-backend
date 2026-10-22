@@ -428,6 +428,22 @@ Grafana의 **FindUs 실종자 배치**에서 마지막 성공 이후 경과 시�
 
 자료 출처: 경찰청. [공식 데이터 API](https://www.safe182.go.kr/home/api/guide5.do). 비상업적 이용·출처 표기 등 [안전Dream 이용약관](https://www.safe182.go.kr/home/api/provision.do)을 확인하세요.
 
+## 🧑‍🔬 로컬 AI 작업 저장
+
+Python AI 서버의 작업 화면(`/test/workbench`)에서 고른 AI 결과만 기존 `MissingImageManagementService.saveAiResult`로 DB에 저장합니다. 로그인 없는 **로컬 전용** 기능이라 기본으로 꺼져 있습니다.
+
+**1.** `.env`에 `AI_WORKBENCH_ENABLED=true`를 추가하고 local 프로필로 서버를 재시작합니다. Flyway V11이 저장 이력 테이블(`ai_workbench_saves`)을 만듭니다.
+
+**2.** Python AI 서버를 켜고 `http://127.0.0.1:8000/test/workbench`에서 아동·원본을 골라 변환한 뒤 원하는 결과만 저장합니다.
+
+| 메서드 | 주소 | 기능 |
+| --- | --- | --- |
+| POST | `/api/local/aiworkbench/saves` | 결과 저장 (multipart). 새로 저장 201, 같은 `resultId`+`imageKey` 재요청은 기존 결과 200, 같은 번호로 다른 사진·연결 정보는 409 |
+| GET | `/api/local/aiworkbench/saves?personId=` 또는 `?resultId=` | 저장 이력 |
+| GET | `/api/local/aiworkbench/ai-images/{aiImageId}` | 작업 화면으로 저장한 AI 사진 |
+
+새 코드는 `aiworkbench` 패키지에만 있고 실종자 도메인은 변경하지 않습니다. 별도 보안 체인이 **이 PC의 서버 간 요청만** 허용하며, 브라우저 요청(`Origin`·`Sec-Fetch-Site` 헤더)과 다른 PC 요청은 403입니다. 목표 나이는 1~100, 사진은 JPEG·PNG 10MB 이하입니다. AI 사진과 저장 이력은 한 트랜잭션으로 저장하며, 동시에 같은 요청이 와도 한 장만 저장합니다. 승인자 신원은 기록하지 않습니다.
+
 ## ⭐ 마이페이지 관심아동
 
 로그인한 회원이 **원본 분류 코드 010**인 공개 실종아동을 관심 목록에 저장합니다. 현재 나이가 성인이어도 원본 코드가 010이면 등록할 수 있습니다. 치매·지적장애인 등 다른 코드는 등록할 수 없습니다.
