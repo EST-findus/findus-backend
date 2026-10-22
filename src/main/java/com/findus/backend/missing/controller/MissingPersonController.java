@@ -19,7 +19,7 @@ public class MissingPersonController {
     private final MissingQueryService service;
     public MissingPersonController(MissingQueryService service) { this.service=service; }
     @GetMapping
-    @Operation(summary="실종자 목록",description="첫 페이지는 0, 크기는 1~100. 공개 중단 정보는 제외하며 원본 발생일 내림차순으로 정렬합니다.")
+    @Operation(summary="실종자 목록",description="첫 페이지는 0, 크기는 1~100. 실종 1년 이상(발생일 기준)만 보여주고, 공개 중단 정보는 제외하며 원본 발생일 내림차순으로 정렬합니다.")
     public MissingPageResponse list(@RequestParam(defaultValue="0") int page,@RequestParam(defaultValue="10") int size) { return service.list(page,size); }
     @GetMapping("/{id}")
     @Operation(summary="실종자 상세",description="우리 DB의 UUID로 조회합니다. 경찰청 원본 식별자는 sourceId, 발생일은 원본 문자열입니다.")

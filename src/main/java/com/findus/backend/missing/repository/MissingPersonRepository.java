@@ -13,6 +13,6 @@ public interface MissingPersonRepository {
     Optional<MissingPerson> findForImageUpdate(UUID id);
     void saveAll(List<MissingPerson> persons);
     boolean tryLock();
-    Page<MissingPerson> findAvailable(Pageable page);
+    Page<MissingPerson> findAvailable(String occurredOnOrBefore,Pageable page);
     Optional<MissingPerson> findAvailable(UUID id);
 }

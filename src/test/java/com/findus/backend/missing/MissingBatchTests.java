@@ -85,7 +85,7 @@ class MissingBatchTests {
         } catch (Exception e) { throw new IllegalStateException("가상 API 준비 실패",e); }
     }
     static String row(int id) {
-        return "{\"msspsnIdntfccd\":"+id+",\"nm\":\"가상회원"+(edited ? "수정" : "")+id+"\",\"writngTrgetDscd\":\"010\",\"sexdstnDscd\":\"여자\",\"occrde\":\"20261001\",\"age\":12,\"ageNow\":\"13\",\"tknphotoFile\":\"가상사진\"}";
+        return "{\"msspsnIdntfccd\":"+id+",\"nm\":\"가상회원"+(edited ? "수정" : "")+id+"\",\"writngTrgetDscd\":\"010\",\"sexdstnDscd\":\"여자\",\"occrde\":\"20200101\",\"age\":12,\"ageNow\":\"13\",\"tknphotoFile\":\"가상사진\"}";
     }
     @DynamicPropertySource static void properties(DynamicPropertyRegistry p) {
         p.add("spring.datasource.url",POSTGRES::getJdbcUrl);p.add("spring.datasource.username",POSTGRES::getUsername);p.add("spring.datasource.password",POSTGRES::getPassword);
@@ -135,6 +135,15 @@ class MissingBatchTests {
         mvc.perform(get("/api/missing-persons")).andExpect(jsonPath("$.totalElements").value(2));
         mvc.perform(get("/api/missing-persons/"+removed)).andExpect(status().isNotFound());
         mode="pages";runner.run();mvc.perform(get("/api/missing-persons/"+removed)).andExpect(status().isOk());
+    }
+    @Test void 목록은_실종_1년_이상만_보여주고_상세는_그대로_연다() throws Exception {
+        runner.run();
+        String today=java.time.LocalDate.now(java.time.ZoneId.of("Asia/Seoul")).format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE);
+        jdbc.update("UPDATE findus.missing_persons SET occurrence_date=? WHERE source_id='2'",today);
+        UUID recent=jdbc.queryForObject("SELECT id FROM findus.missing_persons WHERE source_id='2'",UUID.class);
+        mvc.perform(get("/api/missing-persons")).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].sourceId").value("1"));
+        mvc.perform(get("/api/missing-persons/"+recent)).andExpect(status().isOk());
     }
     // endregion
 
