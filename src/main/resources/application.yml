@@ -71,6 +71,26 @@ app:
     max-pages: 50
     schedule-enabled: ${MISSING_SCHEDULE_ENABLED:false}
     cron: ${MISSING_SYNC_CRON:0 0 4,16 * * *}
+  # 얼굴 변환 AI 서버(ai_server_final)입니다. 머리 스타일 일괄 생성에만 쓰며 GPU 대기 포함 최대 5분 기다립니다.
+  ai-server:
+    base-url: ${AI_SERVER_URL:http://127.0.0.1:8000}
+    api-key: ${AI_SERVER_API_KEY:}
+    timeout: ${AI_SERVER_TIMEOUT:5m}
+  # 대표 AI 사진에 미리 만들어 둘 머리 스타일입니다. key는 AI 서버 configs/hair_presets.yaml의 기본 스타일과 같습니다.
+  ai-style:
+    male:
+      - { key: buzz, name: 아주 짧은 머리 }
+      - { key: short, name: 짧은 머리 }
+      - { key: short_bang, name: 덮머 }
+    female:
+      - { key: short, name: 숏컷 }
+      - { key: bob, name: 단발 }
+      - { key: bob_bang, name: 앞머리 단발 }
+      - { key: long, name: 긴 머리 }
+      - { key: long_bang, name: 앞머리 긴 머리 }
+    # AI 서버가 다른 변환으로 바쁘면(503) 잠시 쉬었다가 다시 요청합니다.
+    busy-retry-delay: 30s
+    busy-retries: 3
   # 관리자 뉴스 승인용 네이버 검색. 키가 비어 있으면 검색 API만 503을 반환합니다.
   news:
     naver:

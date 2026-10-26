@@ -3,6 +3,8 @@ package com.findus.backend.missing.service;
 import com.findus.backend.missing.entity.MissingPerson;
 import com.findus.backend.missing.entity.MissingPersonImage;
 import com.findus.backend.missing.entity.MissingPersonAiImage;
+import com.findus.backend.missing.entity.MissingPersonAiStyleImage;
+import com.findus.backend.missing.repository.MissingPersonAiStyleImageRepository;
 import com.findus.backend.missing.repository.MissingPersonRepository;
 import com.findus.backend.missing.repository.MissingPersonImageRepository;
 import com.findus.backend.missing.repository.MissingPersonAiImageRepository;
@@ -18,9 +20,10 @@ public class MissingImageManagementServiceImpl implements MissingImageManagement
     private final MissingPersonRepository persons;
     private final MissingPersonImageRepository originals;
     private final MissingPersonAiImageRepository aiImages;
+    private final MissingPersonAiStyleImageRepository styles;
     public MissingImageManagementServiceImpl(MissingPersonRepository persons,MissingPersonImageRepository originals,
-            MissingPersonAiImageRepository aiImages) {
-        this.persons=persons;this.originals=originals;this.aiImages=aiImages;
+            MissingPersonAiImageRepository aiImages,MissingPersonAiStyleImageRepository styles) {
+        this.persons=persons;this.originals=originals;this.aiImages=aiImages;this.styles=styles;
     }
     private MissingPerson lockAvailablePerson(UUID id) {
         var person=persons.findForImageUpdate(id).orElseThrow(() -> new IllegalArgumentException("실종아동을 찾을 수 없습니다."));
@@ -78,5 +81,9 @@ public class MissingImageManagementServiceImpl implements MissingImageManagement
                 .orElseThrow(() -> new IllegalArgumentException("같은 아동의 AI 사진을 선택하세요."));
         if (image.isDeleted()) return;
         image.softDelete();aiImages.saveAll(List.of(image));ensureAiMain(personId);
+    }
+    @Override public UUID saveAiStyle(UUID aiImageId,String sex,String styleKey,byte[] generated,String options) {
+        var aiImage=aiImages.findActive(aiImageId).orElseThrow(() -> new IllegalArgumentException("활성 AI 사진을 찾을 수 없습니다."));
+        return styles.save(new MissingPersonAiStyleImage(aiImage,sex,styleKey,generated,options)).getId();
     }
 }

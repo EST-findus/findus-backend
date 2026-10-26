@@ -57,17 +57,37 @@ class SwaggerTests {
         var doc=(tools.jackson.databind.node.ObjectNode)mapper.readTree(result.getResponse().getContentAsString());
         // 테스트 실행 주소만 제외하고 경로·요청·응답 스키마·설명 전체를 비교합니다.
         doc.remove("servers");
-        // 이후 추가한 뉴스·문의 API는 기준 문서에 없으므로 제외하고 기존 문서만 비교합니다.
+        // 이후 추가한 뉴스·문의·AI 이미지·AI 스타일 API는 기준 문서에 없으므로 제외하고 기존 문서만 비교합니다.
         var paths=(tools.jackson.databind.node.ObjectNode)doc.path("paths");
-        paths.remove(paths.properties().stream().map(java.util.Map.Entry::getKey).filter(path -> path.contains("/news") || path.contains("/inquiries")).toList());
+        paths.remove(paths.properties().stream().map(java.util.Map.Entry::getKey).filter(path -> path.contains("/news") || path.contains("/inquiries")
+                || path.contains("/ai-image") || path.contains("/ai-styles")).toList());
         var schemas=(tools.jackson.databind.node.ObjectNode)doc.path("components").path("schemas");
-        schemas.remove(schemas.properties().stream().map(java.util.Map.Entry::getKey).filter(name -> name.startsWith("News") || name.startsWith("Inquiry") || name.equals("JsonNode")).toList());
+        schemas.remove(schemas.properties().stream().map(java.util.Map.Entry::getKey).filter(name -> name.startsWith("News") || name.startsWith("Inquiry") || name.equals("JsonNode")
+                || name.startsWith("MissingAiImageResponse") || name.equals("Style") || name.startsWith("AiStyle")).toList());
+        // 목록·상세 응답에 추가한 대표 AI 사진 주소도 기준 문서에는 없으므로 제외합니다.
+        if (schemas.path("MissingPersonResponse").path("properties") instanceof tools.jackson.databind.node.ObjectNode person)
+            person.remove("aiPhotoUrl");
         if (doc.path("tags") instanceof tools.jackson.databind.node.ArrayNode tags)
-            for (int i=tags.size()-1;i>=0;i--) if (tags.get(i).path("name").asString().startsWith("뉴스") || tags.get(i).path("name").asString().equals("문의")) tags.remove(i);
+            for (int i=tags.size()-1;i>=0;i--) {
+                String name=tags.get(i).path("name").asString();
+                if (name.startsWith("뉴스") || name.equals("문의") || name.startsWith("AI 이미지") || name.startsWith("AI 스타일")) tags.remove(i);
+            }
         try (var baseline=getClass().getResourceAsStream("/contracts/openapi-before-ai-images.json")) {
             assertThat(baseline).isNotNull();
-            assertThat(doc).isEqualTo(mapper.readTree(baseline));
+            var expected=mapper.readTree(baseline);
+            // 컨트롤러가 늘면 태그 나열 순서만 바뀌므로 태그는 이름순으로 맞춘 뒤 내용을 비교합니다.
+            sortTags(doc);sortTags(expected);
+            assertThat(doc).isEqualTo(expected);
         }
+    }
+    private static void sortTags(tools.jackson.databind.JsonNode doc) {
+        if (!(doc.path("tags") instanceof tools.jackson.databind.node.ArrayNode tags)) return;
+        var sorted=new java.util.ArrayList<tools.jackson.databind.JsonNode>();
+        tags.forEach(sorted::add);
+        // 이름이 같은 태그(실종자)가 설명만 달리해 둘 있으므로 설명까지 기준으로 씁니다.
+        sorted.sort(java.util.Comparator.<tools.jackson.databind.JsonNode,String>comparing(tag -> tag.path("name").asString())
+                .thenComparing(tag -> tag.path("description").asString()));
+        tags.removeAll();sorted.forEach(tags::add);
     }
 
 	@Test
