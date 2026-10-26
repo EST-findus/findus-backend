@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>대표 사진 지정</title>
+<style>
+body{margin:0;padding:24px;font-family:system-ui,sans-serif;background:#f4f6f8;color:#172b3a}header,main,nav{max-width:1200px;margin:0 auto}h1{font-size:24px}p{line-height:1.6}button,label{font:inherit}button{padding:9px 12px;border:1px solid #aebec8;background:white;border-radius:4px;cursor:pointer}button:disabled{opacity:.5;cursor:default}button[aria-current=page]{background:#172b3a;color:white}.actions,nav{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}#db{display:inline-block;padding:4px 10px;border-radius:4px;background:#fff3cd;border:1px solid #e0c36a;font-weight:600;overflow-wrap:anywhere}#status{white-space:pre-wrap;overflow-wrap:anywhere}#status.error{color:#b42318}#people{display:flex;flex-direction:column;gap:16px;margin-bottom:24px}article{padding:16px 20px;background:white;border:2px solid #d7dfe5;border-radius:8px;min-width:0}article.active{border-color:#2563eb}article.reviewed{background:#eef8f0}.head{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}h2{font-size:18px;margin:0}.meta{font-size:14px;color:#52616c}.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin:12px 0}.photo{position:relative;padding:0;border:3px solid transparent;background:#f3f3f3;border-radius:6px;overflow:hidden}.photo img{display:block;width:100%;height:200px;object-fit:contain}.photo.main{border-color:#16a34a}.photo .badge{position:absolute;top:6px;left:6px;padding:2px 8px;border-radius:4px;background:rgba(23,43,58,.8);color:white;font-size:13px}.photo.main .badge{background:#16a34a}.photo:disabled{opacity:1;cursor:wait}.review{display:flex;gap:8px;align-items:center;cursor:pointer}.empty{padding:20px;background:white}.notice{font-size:14px;color:#52616c}[hidden]{display:none!important}
+@media (max-width:600px){body{padding:16px}.photos{grid-template-columns:repeat(2,minmax(0,1fr))}.photo img{height:160px}}
+</style>
+</head>
+<body>
+<header>
+<h1>실종아동 대표 사진 지정</h1>
+<p>연결된 DB: <span id="db">확인 중…</span></p>
+<p class="notice">사진을 누르면 그 사진이 바로 대표(is_main)로 저장됩니다. 저장은 위에 표시된 DB에 즉시 반영됩니다.<br>
+‘검토 완료’ 체크는 이 브라우저에만 저장됩니다. 단축키: 숫자 1~9 = 선택 중인 아동의 사진 지정 · Enter = 검토 완료 후 다음 아동 · ↑/↓ = 아동 이동</p>
+<div class="actions">
+<label class="review"><input id="multi-only" type="checkbox" checked> 사진 2장 이상만</label>
+<label class="review"><input id="hide-reviewed" type="checkbox"> 검토 완료 숨기기</label>
+<button id="reload" type="button">새로고침</button>
+<span id="progress"></span>
+</div>
+<p id="status" role="status" aria-live="polite"></p>
+</header>
+<nav aria-label="위쪽 페이지 선택"></nav>
+<main id="people" aria-busy="false"></main>
+<nav aria-label="아래쪽 페이지 선택"></nav>
+<noscript>JavaScript를 켜주세요.</noscript>
+<script>
+'use strict';
+const size = 10;
+const pageGroupSize = 10;
+const storageKey = 'findus.mainPhoto.reviewed';
+let currentPage = 0;
+let data = null;
+let active = 0;
+let busy = false;
+const status = document.getElementById('status');
+const people = document.getElementById('people');
+const multiOnly = document.getElementById('multi-only');
+const hideReviewed = document.getElementById('hide-reviewed');
+
+// 검토 완료 표시는 DB가 아닌 이 브라우저에만 저장합니다. 저장소를 못 써도 화면은 동작합니다.
+const reviewed = (() => {
+    try { return new Set(JSON.parse(localStorage.getItem(storageKey) || '[]')); } catch { return new Set(); }
+})();
+function saveReviewed() {
+    try { localStorage.setItem(storageKey, JSON.stringify([...reviewed])); } catch { /* 저장 실패는 무시합니다 */ }
+}
+function showStatus(text, error = false) {
+    status.textContent = text;
+    status.classList.toggle('error', error);
+}
+async function api(path, method = 'GET', body) {
+    const options = {method, credentials:'omit', cache:'no-store', headers:{}};
+    if (body !== undefined) {
+        options.headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify(body);
+    }
+    // 변경 요청은 이 화면에서 보낸 것임을 서버가 확인합니다.
+    if (method !== 'GET') options.headers['X-Findus-Tool'] = 'main-photo';
+    const response = await fetch(path, options);
+    if (response.status === 204) return null;
+    const json = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(json?.message || `요청 실패 (HTTP ${response.status})`);
+    return json;
+}
+function element(tag, text, className) {
+    const node = document.createElement(tag);
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    if (className) node.className = className;
+    return node;
+}
+function visiblePeople() {
+    return data ? data.content.filter(p => !hideReviewed.checked || !reviewed.has(p.id)) : [];
+}
+function updateProgress() {
+    if (!data) return;
+    const onPage = data.content.filter(p => reviewed.has(p.id)).length;
+    document.getElementById('progress').textContent =
+        `이 페이지 검토 ${onPage}/${data.content.length} · 전체 검토 완료 ${reviewed.size}명 / 대상 ${data.totalElements}명`;
+}
+async function select(person, image, button) {
+    if (busy || image.main) return;
+    busy = true;
+    const buttons = [...button.parentElement.children];
+    buttons.forEach(b => { b.disabled = true; });
+    showStatus(`${person.name}: 대표 사진 저장 중…`);
+    try {
+        await api(`/api/local/main-photo/persons/${person.id}/main`, 'PUT', {imageId:image.id});
+        // 서버 저장이 끝난 뒤에만 화면의 대표 표시를 옮깁니다.
+        person.images.forEach(i => { i.main = i.id === image.id; });
+        render();
+        showStatus(`${person.name}: 사진 ${image.sortOrder + 1}번을 대표로 저장했습니다.`);
+    } catch (error) {
+        showStatus(`${person.name}: 저장 실패 · ${error.message}`, true);
+        buttons.forEach(b => { b.disabled = false; });
+    } finally { busy = false; }
+}
+function toggleReviewed(person, value) {
+    if (value) reviewed.add(person.id); else reviewed.delete(person.id);
+    saveReviewed();
+    render();
+}
+function card(person, index) {
+    const article = element('article', null, (index === active ? 'active ' : '') + (reviewed.has(person.id) ? 'reviewed' : ''));
+    article.addEventListener('click', () => { if (active !== index) { active = index; render(); } });
+    const head = element('div', null, 'head');
+    head.append(element('h2', person.name),
+        element('span', [person.sex, person.age != null ? `당시 ${person.age}세` : null, person.ageNow != null ? `현재 ${person.ageNow}세` : null,
+            person.occurrenceDate ? `발생 ${person.occurrenceDate}` : null, `경찰청 ${person.sourceId}`].filter(Boolean).join(' · '), 'meta'));
+    article.append(head);
+    const photos = element('div', null, 'photos');
+    person.images.forEach((image, number) => {
+        const button = element('button', null, 'photo' + (image.main ? ' main' : ''));
+        button.type = 'button';
+        button.title = image.main ? '현재 대표 사진' : '이 사진을 대표로 지정';
+        const expected = `/api/missing-persons/${person.id}/images/${image.id}`;
+        if (image.url === expected) {
+            const img = element('img');
+            img.alt = `${person.name} 사진 ${number + 1}`;
+            img.loading = 'lazy';
+            img.src = expected;
+            img.addEventListener('error', () => { img.replaceWith(element('p', '사진 조회 실패')); }, {once:true});
+            button.append(img);
+        } else button.append(element('p', '사진 주소 확인 불가'));
+        button.append(element('span', image.main ? `${number + 1} · 대표` : String(number + 1), 'badge'));
+        button.addEventListener('click', () => select(person, image, button));
+        photos.append(button);
+    });
+    article.append(person.images.length ? photos : element('p', '저장된 사진 없음'));
+    const label = element('label', null, 'review');
+    const check = element('input');
+    check.type = 'checkbox';
+    check.checked = reviewed.has(person.id);
+    check.addEventListener('change', () => toggleReviewed(person, check.checked));
+    label.append(check, document.createTextNode('검토 완료'));
+    article.append(label);
+    return article;
+}
+function render() {
+    const list = visiblePeople();
+    if (active >= list.length) active = Math.max(0, list.length - 1);
+    people.replaceChildren(...list.map(card));
+    if (data && !data.totalElements) people.append(element('p', '대상 아동이 없습니다.', 'empty'));
+    else if (data && !list.length) people.append(element('p', '이 페이지는 모두 검토했습니다. 다음 페이지로 이동하세요.', 'empty'));
+    updateProgress();
+}
+function pagination() {
+    document.querySelectorAll('nav').forEach(nav => {
+        nav.replaceChildren();
+        if (!data || data.totalPages < 2) return;
+        function button(label, target, unavailable = false) {
+            const node = element('button', label);
+            node.type = 'button';
+            node.disabled = unavailable;
+            if (target === currentPage && /^\d+$/.test(label)) node.setAttribute('aria-current', 'page');
+            node.addEventListener('click', () => load(target, true));
+            nav.append(node);
+        }
+        const group = Math.floor(currentPage / pageGroupSize) * pageGroupSize;
+        button('처음', 0, currentPage === 0);
+        button('이전', currentPage - 1, currentPage === 0);
+        if (group > 0) button('이전 10쪽', group - 1);
+        for (let i = group; i < Math.min(group + pageGroupSize, data.totalPages); i++) button(String(i + 1), i);
+        if (group + pageGroupSize < data.totalPages) button('다음 10쪽', group + pageGroupSize);
+        button('다음', currentPage + 1, currentPage >= data.totalPages - 1);
+        button('마지막', data.totalPages - 1, currentPage >= data.totalPages - 1);
+    });
+}
+async function load(page = currentPage, scroll = false) {
+    if (busy) return;
+    busy = true;
+    people.setAttribute('aria-busy', 'true');
+    showStatus('DB 조회 중…');
+    try {
+        const path = p => `/api/local/main-photo/persons?page=${p}&size=${size}&multiOnly=${multiOnly.checked}`;
+        let result = await api(path(page));
+        if (page > 0 && page >= result.totalPages) {
+            page = Math.max(0, result.totalPages - 1);
+            result = await api(path(page));
+        }
+        data = result;
+        currentPage = page;
+        active = 0;
+        document.getElementById('db').textContent = data.dbHost;
+        render();
+        pagination();
+        showStatus(`${currentPage + 1}/${Math.max(1, data.totalPages)}페이지`);
+        if (scroll) window.scrollTo({top:0, behavior:'smooth'});
+    } catch (error) {
+        showStatus(`DB 조회 실패: ${error.message}`, true);
+    } finally {
+        busy = false;
+        people.setAttribute('aria-busy', 'false');
+    }
+}
+document.addEventListener('keydown', event => {
+    if (event.target instanceof HTMLInputElement || event.ctrlKey || event.metaKey || event.altKey) return;
+    const list = visiblePeople();
+    const person = list[active];
+    if (!person) return;
+    if (/^[1-9]$/.test(event.key)) {
+        const index = Number(event.key) - 1;
+        const button = people.children[active]?.querySelectorAll('.photo')[index];
+        if (person.images[index] && button) select(person, person.images[index], button);
+    } else if (event.key === 'Enter') {
+        event.preventDefault();
+        reviewed.add(person.id);
+        saveReviewed();
+        // 숨기기를 켰다면 현재 카드가 사라지므로 같은 위치가 다음 아동이 됩니다.
+        if (!hideReviewed.checked) active = Math.min(active + 1, list.length - 1);
+        render();
+        people.children[active]?.scrollIntoView({block:'center', behavior:'smooth'});
+    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        active = Math.max(0, Math.min(list.length - 1, active + (event.key === 'ArrowDown' ? 1 : -1)));
+        render();
+        people.children[active]?.scrollIntoView({block:'center', behavior:'smooth'});
+    }
+});
+multiOnly.addEventListener('change', () => load(0));
+hideReviewed.addEventListener('change', () => { active = 0; render(); });
+document.getElementById('reload').addEventListener('click', () => load());
+load(0);
+</script>
+</body>
+</html>

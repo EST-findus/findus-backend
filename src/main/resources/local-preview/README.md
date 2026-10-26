@@ -18,4 +18,21 @@ http://localhost:18080/test/safe182
 
 페이지 응답과 사진 응답은 캐시 저장을 금지하고, 데이터 요청도 `cache: no-store`로 조회합니다. 화면을 열 때마다 DB의 현재 공개 데이터가 반영됩니다. 화면 코드는 Git으로 공유하지만 개인정보·사진을 넣은 파일은 공유하지 않습니다.
 
+## 대표 원본 사진 지정 화면
+
+아동별 원본 사진 중 대표(`missing_person_images.is_main`)를 사람이 직접 고르는 화면입니다. 사진을 누르면 연결된 DB에 바로 저장됩니다.
+
+```powershell
+# 원격 DB에 반영할 때 (.env.deploy의 POSTGRES_* · POSTGRES_SSLMODE=require 사용)
+$env:FINDUS_ENV_FILE=".env.deploy"; $env:MAIN_PHOTO_TOOL_ENABLED="true"; ./gradlew bootRun
+```
+
+http://localhost:18080/test/main-photo
+
+- 화면 맨 위 ‘연결된 DB’가 의도한 DB 주소인지 먼저 확인합니다. 로컬 DB로 연습하려면 `FINDUS_ENV_FILE` 없이 실행합니다.
+- 원격 DB로 실행할 때는 `DUMMY_DATA_ENABLED=false`(또는 `DUMMY_STARTUP_ENABLED=false`)여야 시작 시 더미 데이터를 원격에 쓰지 않습니다.
+- 기본은 활성 사진이 2장 이상인 아동만 보여줍니다. 대표 변경은 기존 `selectOriginalMain`을 사용하므로 아동당 대표는 항상 1장이며, 이후 경찰청 동기화도 선택을 유지합니다(선택한 사진이 사라지면 첫 활성 사진으로 돌아갑니다).
+- ‘검토 완료’ 체크는 DB가 아닌 이 브라우저(localStorage)에만 저장합니다.
+- 이 PC에서 `localhost`로 접속한 요청만 받습니다. 작업이 끝나면 백엔드를 종료합니다.
+
 // TODO 배포 전: SecurityConfig의 동기화 POST·GET을 관리자 권한으로 제한하고, POST의 CSRF 예외를 제거하며 Swagger의 인증 요구도 복원해야 합니다.

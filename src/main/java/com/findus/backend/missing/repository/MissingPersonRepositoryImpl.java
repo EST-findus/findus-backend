@@ -24,4 +24,5 @@ public class MissingPersonRepositoryImpl implements MissingPersonRepository {
     }
     @Override public Page<MissingPerson> findAvailable(String occurredOnOrBefore,Pageable page) { return jpa.findAllBySourceAvailableTrueAndDeletedAtIsNullAndOccurrenceDateLessThanEqual(occurredOnOrBefore,page); }
     @Override public Optional<MissingPerson> findAvailable(UUID id) { return jpa.findByIdAndSourceAvailableTrueAndDeletedAtIsNull(id); }
+    @Override public Page<MissingPerson> findForMainReview(long minImages,Pageable page) { return jpa.findForMainReview(minImages,page); }
 }
