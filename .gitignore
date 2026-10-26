@@ -1,20 +1,20 @@
-# Based on the user-provided gitignore.io templates:
-# macOS, Windows, Java, IntelliJ IDEA and Visual Studio Code.
-# Adapted for FindUs: Java / Gradle / Spring Boot / Docker Compose.
-# IDE settings are local; build.gradle and the Gradle Wrapper are shared.
+# 사용자가 제공한 gitignore.io 템플릿을 기준으로 작성했습니다.
+# macOS·Windows·Java·IntelliJ IDEA·Visual Studio Code 환경을 포함합니다.
+# FindUs의 Java·Gradle·Spring Boot·Docker Compose 환경에 맞춰 보완했습니다.
+# IDE 개인 설정은 제외하고 build.gradle과 Gradle Wrapper는 공유합니다.
 
 ### Gradle ###
 .gradle/
 .kotlin/
 build/
 
-### Java build output and crash reports ###
+### Java 빌드 결과와 오류 보고서 ###
 *.class
 *.jar
 *.war
 *.nar
 *.ear
-# Required to build without a separately installed Gradle.
+# Gradle을 별도 설치하지 않고 빌드하는 데 필요한 파일입니다.
 !/gradle/wrapper/gradle-wrapper.jar
 hs_err_pid*
 replay_pid*
@@ -37,7 +37,7 @@ atlassian-ide-plugin.xml
 .localhistory/
 *.vsix
 
-### Other Java IDE generated settings ###
+### 기타 Java IDE가 생성하는 설정 ###
 .apt_generated/
 .classpath
 .factorypath
@@ -76,21 +76,19 @@ $RECYCLE.BIN/
 *.stackdump
 *.lnk
 
-### Editor temporary files and backups ###
+### 편집기 임시 파일과 백업 ###
 *~
 *.swp
 *.swo
 *.bak
 *.orig
 
-### Local environment and private configuration ###
+### 개인 환경변수와 비공개 설정 ###
 .env
 .env.*
 !.env.example
 !.env.*.example
-/src/main/resources/application-local.properties
-/src/main/resources/application-local.yml
-/src/main/resources/application-local.yaml
+# application-local.yml은 실제 비밀번호 없이 공유합니다.
 /src/main/resources/application-secret.properties
 /src/main/resources/application-secret.yml
 /src/main/resources/application-secret.yaml
@@ -105,19 +103,19 @@ $RECYCLE.BIN/
 *.jks
 *.keystore
 
-### Docker bind-mounted runtime data ###
-# Use docker-data/<service>/ for future PostgreSQL, Redis and monitoring data.
-# Named volumes and downloaded Docker images live outside this repository.
+### Docker가 생성하는 실행 데이터 ###
+# 폴더로 데이터를 저장할 경우 docker-data/<서비스명>/을 사용합니다.
+# 이름 있는 볼륨과 내려받은 Docker 이미지는 저장소 밖에서 관리됩니다.
 /docker-data/
-# Also cover service-specific local data paths.
+# 서비스별 개인 데이터 경로도 제외합니다.
 /docker/postgres/data/
 /docker/postgresql/data/
 /docker/redis/data/
 /docker/prometheus/data/
 /docker/grafana/data/
-# Keep Dockerfile, Compose files, shared config and migration SQL in Git.
+# Dockerfile·Compose·공유 설정·마이그레이션 SQL은 Git에서 관리합니다.
 
-### Logs, local database backups and reports ###
+### 로그·개인 DB 백업·보고서 ###
 *.log
 /logs/
 /backups/
@@ -127,3 +125,7 @@ dump.rdb
 appendonly.aof
 appendonlydir/
 /coverage/
+
+# 실제 경찰청 데이터 출력 결과와 임시 파일
+/src/main/resources/local-preview/*.json
+/src/main/resources/local-preview/*.tmp

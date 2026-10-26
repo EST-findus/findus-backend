@@ -1,0 +1,12 @@
+# Grafana가 컨테이너 내부 네트워크로 Prometheus에 접속합니다.
+apiVersion: 1
+datasources:
+  - name: FindUs Prometheus
+    uid: findus-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:19090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: 15s

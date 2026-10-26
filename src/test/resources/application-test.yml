@@ -1,0 +1,5 @@
+# 임시 컨테이너 테스트에서만 사용하는 공개 키이며 실제 환경에는 사용하지 않습니다.
+app:
+  auth:
+    secret: dGVzdC1vbmx5LWZpbmR1cy1qd3Qta2V5LWZvci10ZXN0cy0zMmJ5dGVz
+    cookie-secure: false

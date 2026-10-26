@@ -1,0 +1,117 @@
+spring:
+  application:
+    name: FindUs
+  profiles:
+    default: local
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:15432}/${POSTGRES_DB:findus}?sslmode=${POSTGRES_SSLMODE:prefer}
+    username: ${POSTGRES_USER:findus}
+    password: ${POSTGRES_PASSWORD}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 10000
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: findus
+  flyway:
+    enabled: true
+    default-schema: public
+    clean-disabled: true
+    locations: classpath:db/migration
+  batch:
+    job:
+      enabled: false
+    jdbc:
+      initialize-schema: never
+      table-prefix: public.BATCH_
+  sql:
+    init:
+      mode: never
+  data:
+    # 게시글 목록은 기본 10개, 최대 100개까지 조회합니다.
+    web:
+      pageable:
+        default-page-size: 10
+        max-page-size: 100
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:16379}
+      password: ${REDIS_PASSWORD}
+      connect-timeout: 3s
+      timeout: 3s
+
+server:
+  port: ${SERVER_PORT:18080}
+
+# 메트릭 수집 경로는 local 프로필에서만 활성화합니다.
+management:
+  endpoints:
+    access:
+      default: none
+    jmx:
+      exposure:
+        exclude: "*"
+  prometheus:
+    metrics:
+      export:
+        enabled: false
+
+# 토큰 서명 키는 .env 또는 배포 환경변수에서만 가져옵니다.
+app:
+  # 배포에서 예약을 켜면 한국 시간 04:00·16:00에 실행합니다.
+  missing:
+    base-url: ${SAFE182_BASE_URL:https://www.safe182.go.kr}
+    esntl-id: ${SAFE182_ESNTL_ID:}
+    auth-key: ${SAFE182_AUTH_KEY:}
+    max-pages: 50
+    schedule-enabled: ${MISSING_SCHEDULE_ENABLED:false}
+    cron: ${MISSING_SYNC_CRON:0 0 4,16 * * *}
+  # 얼굴 변환 AI 서버(ai_server_final)입니다. 머리 스타일 일괄 생성에만 쓰며 GPU 대기 포함 최대 5분 기다립니다.
+  ai-server:
+    base-url: ${AI_SERVER_URL:http://127.0.0.1:8000}
+    api-key: ${AI_SERVER_API_KEY:}
+    timeout: ${AI_SERVER_TIMEOUT:5m}
+  # 대표 AI 사진에 미리 만들어 둘 머리 스타일입니다. key는 AI 서버 configs/hair_presets.yaml의 기본 스타일과 같습니다.
+  ai-style:
+    male:
+      - { key: buzz, name: 아주 짧은 머리 }
+      - { key: short, name: 짧은 머리 }
+      - { key: short_bang, name: 덮머 }
+    female:
+      - { key: short, name: 숏컷 }
+      - { key: bob, name: 단발 }
+      - { key: bob_bang, name: 앞머리 단발 }
+      - { key: long, name: 긴 머리 }
+      - { key: long_bang, name: 앞머리 긴 머리 }
+    # AI 서버가 다른 변환으로 바쁘면(503) 잠시 쉬었다가 다시 요청합니다.
+    busy-retry-delay: 30s
+    busy-retries: 3
+  # 관리자 뉴스 승인용 네이버 검색. 키가 비어 있으면 검색 API만 503을 반환합니다.
+  news:
+    naver:
+      provider: ${NAVER_API_PROVIDER:hub}
+      client-id: ${NAVER_CLIENT_ID:}
+      client-secret: ${NAVER_CLIENT_SECRET:}
+      default-query: ${NAVER_NEWS_QUERY:장기 실종아동}
+      display: ${NAVER_NEWS_DISPLAY:10}
+  auth:
+    secret: ${JWT_SECRET}
+    issuer: findus
+    access-ttl: ${JWT_ACCESS_TTL:15m}
+    refresh-ttl: ${JWT_REFRESH_TTL:7d}
+    cookie-secure: ${AUTH_COOKIE_SECURE:true}
+    allowed-origins: ${FRONTEND_ORIGIN:http://localhost:5173}
+
+# API 문서는 로컬 환경에서만 켭니다.
+springdoc:
+  # 각 API에 명시한 응답만 표시하여 관계없는 오류가 섞이지 않게 합니다.
+  override-with-generic-response: false
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

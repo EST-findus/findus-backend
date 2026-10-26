@@ -1,0 +1,427 @@
+{
+  "uid": "findus-postgres",
+  "title": "FindUs PostgreSQL 상태",
+  "description": "PostgreSQL의 연결·DB 크기·트랜잭션·잠금 상태입니다. exporter의 조회 등 전체 DB 활동을 포함합니다.",
+  "tags": [
+    "FindUs"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "editable": false,
+  "links": [
+    {
+      "title": "백엔드",
+      "type": "link",
+      "url": "/d/findus-backend",
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "JVM 상세",
+      "type": "link",
+      "url": "/d/findus-jvm",
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "PostgreSQL",
+      "type": "link",
+      "url": "/d/findus-postgres",
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "Redis",
+      "type": "link",
+      "url": "/d/findus-redis",
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "요청·DB 트랜잭션",
+      "type": "link",
+      "url": "/d/findus-transactions",
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "PostgreSQL 연결 상태",
+      "description": "exporter가 DB에 연결할 수 있으면 1입니다. exporter 자체가 중지되면 값이 없을 수 있습니다.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "pg_up{job=\"findus-postgres\"}",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "연결 실패",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "연결 정상",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 2,
+      "title": "현재 접속 수",
+      "description": "findus DB에 접속한 세션 수입니다. 백엔드와 exporter 연결도 포함됩니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "pg_stat_database_numbackends{job=\"findus-postgres\",datname=\"findus\"}",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "DB 사용 용량",
+      "description": "테이블·인덱스 등을 포함한 findus DB 크기입니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "pg_database_size_bytes{job=\"findus-postgres\",datname=\"findus\"}",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "DB 캐시 적중률",
+      "description": "최근 5분의 PostgreSQL 버퍼 캐시 적중률입니다. 운영체제 캐시는 포함하지 않습니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(pg_stat_database_blks_hit{job=\"findus-postgres\",datname=\"findus\"}[5m])) / clamp_min(sum(rate(pg_stat_database_blks_hit{job=\"findus-postgres\",datname=\"findus\"}[5m])) + sum(rate(pg_stat_database_blks_read{job=\"findus-postgres\",datname=\"findus\"}[5m])), 0.000001)",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "초당 커밋·롤백 수",
+      "description": "DB 전체 트랜잭션의 처리량이며 API 요청 수와 다릅니다. exporter의 조회도 포함됩니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(pg_stat_database_xact_commit{job=\"findus-postgres\",datname=\"findus\"}[1m])",
+          "legendFormat": "커밋"
+        },
+        {
+          "refId": "B",
+          "expr": "rate(pg_stat_database_xact_rollback{job=\"findus-postgres\",datname=\"findus\"}[1m])",
+          "legendFormat": "롤백"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "최근 5분 교착 상태 수",
+      "description": "동시에 서로 잠금을 기다려 PostgreSQL이 감지한 교착 상태 횟수입니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "increase(pg_stat_database_deadlocks{job=\"findus-postgres\",datname=\"findus\"}[5m])",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "현재 잠금 수",
+      "description": "잠금 수가 많다는 사실만으로 장애를 뜻하지는 않습니다. 정상 조회·수정도 잠금을 사용합니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (mode) (pg_locks_count{job=\"findus-postgres\",datname=\"findus\"})",
+          "legendFormat": "{{mode}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "초당 행 변경 수",
+      "description": "INSERT·UPDATE·DELETE로 변경된 행 수입니다. 한 API가 여러 행을 변경할 수 있습니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rate(pg_stat_database_tup_inserted{job=\"findus-postgres\",datname=\"findus\"}[1m])",
+          "legendFormat": "추가"
+        },
+        {
+          "refId": "B",
+          "expr": "rate(pg_stat_database_tup_updated{job=\"findus-postgres\",datname=\"findus\"}[1m])",
+          "legendFormat": "수정"
+        },
+        {
+          "refId": "C",
+          "expr": "rate(pg_stat_database_tup_deleted{job=\"findus-postgres\",datname=\"findus\"}[1m])",
+          "legendFormat": "삭제"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    }
+  ]
+}

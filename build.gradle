@@ -18,11 +18,51 @@ repositories {
 }
 
 dependencies {
+	compileOnly 'org.projectlombok:lombok'
+	annotationProcessor 'org.projectlombok:lombok'
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	// API 설명을 자동으로 만들고 브라우저에서 요청을 테스트합니다.
+	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'org.springframework.boot:spring-boot-starter-flyway'
+	// 배치 실행 이력을 PostgreSQL에 보관합니다.
+	implementation 'org.springframework.boot:spring-boot-starter-batch-jdbc'
+	// 서버 지표를 측정하고 Prometheus가 읽을 수 있는 형식으로 제공합니다.
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+	runtimeOnly 'org.postgresql:postgresql'
+	runtimeOnly 'org.flywaydb:flyway-database-postgresql'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+	testImplementation 'org.testcontainers:testcontainers-postgresql'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+// Mac·Windows 모두 한국어 소스와 테스트 메시지를 UTF-8로 읽습니다.
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+	systemProperty 'file.encoding', 'UTF-8'
+}
+
+// 확인 화면 코드만 포함하고 실제 데이터 파일·문서는 서버 배포 파일에서 제외합니다.
+tasks.named('processResources') {
+    exclude 'local-preview/*.json', 'local-preview/*.tmp', 'local-preview/*.md', 'local-preview/template.html'
+}
+
+// 기존 명령은 파일을 생성하거나 경찰청에 요청하지 않고 새 DB 확인 주소만 안내합니다.
+tasks.register('safeDreamPreview') {
+    group = 'verification'
+    description = '로컬 DB 실종아동 확인 페이지 주소를 안내합니다 (파일 생성 없음)'
+    doLast {
+        println '백엔드를 local 프로필로 실행한 뒤 http://localhost:18080/test/safe182 를 여세요.'
+        println '이 명령은 경찰청 API를 호출하거나 데이터 파일을 생성하지 않습니다.'
+    }
 }

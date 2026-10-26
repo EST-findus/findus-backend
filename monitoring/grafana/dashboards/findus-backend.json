@@ -1,0 +1,376 @@
+{
+  "uid": "findus-backend",
+  "title": "FindUs 백엔드 모니터링",
+  "description": "Spring Boot의 JVM·HTTP 요청·DB 연결 상태를 확인합니다. Prometheus는 15초마다 수집합니다.",
+  "tags": [
+    "FindUs"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "editable": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "메트릭 수집 상태",
+      "description": "1이면 정상 수집, 0이면 서버 중지·인증·연결 문제입니다. DB·Redis 상태는 기존 /health에서 확인합니다.",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=\"findus-backend\"}",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "수집 실패",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "수집 정상",
+                  "color": "green"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 2,
+      "title": "서버 CPU 사용률",
+      "description": "Java 프로세스의 CPU 사용률입니다. Mac 전체 CPU 사용률과는 다릅니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_cpu_usage{application=\"findus-backend\",job=\"findus-backend\"}",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "JVM 힙 메모리 사용량",
+      "description": "Java 객체를 보관하는 힙 메모리의 현재 사용량입니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 0
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(jvm_memory_used_bytes{application=\"findus-backend\",job=\"findus-backend\",area=\"heap\"})",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "초당 API 요청 수",
+      "description": "최근 1분간 요청 수를 초당 평균으로 표시합니다. 수집 요청은 제외합니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"findus-backend\",job=\"findus-backend\",uri!~\"/actuator.*\"}[1m]))",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "API 응답 시간 p95",
+      "description": "최근 5분간 요청의 약 95%가 이 시간 이내에 처리됐다는 뜻입니다. 요청이 없으면 값이 표시되지 않을 수 있습니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{application=\"findus-backend\",job=\"findus-backend\",uri!~\"/actuator.*\"}[5m])))",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "초당 서버 오류 수",
+      "description": "HTTP 5xx 응답의 초당 평균입니다. 401·403 같은 인증 오류는 포함하지 않습니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(http_server_requests_seconds_count{application=\"findus-backend\",job=\"findus-backend\",status=~\"5..\",uri!~\"/actuator.*\"}[1m])) or vector(0)",
+          "legendFormat": "{{instance}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "DB 커넥션 사용량",
+      "description": "Spring의 Hikari 커넥션 풀에서 현재 사용 중인 연결 수와 최대 연결 수입니다. PostgreSQL 서버 전체 통계와는 다릅니다.",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "findus-prometheus"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "hikaricp_connections_active{application=\"findus-backend\",job=\"findus-backend\"}",
+          "legendFormat": "사용 중 {{pool}}"
+        },
+        {
+          "refId": "B",
+          "expr": "hikaricp_connections_max{application=\"findus-backend\",job=\"findus-backend\"}",
+          "legendFormat": "최대 {{pool}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    }
+  ],
+  "links": [
+    {
+      "title": "백엔드",
+      "type": "link",
+      "url": "/d/findus-backend",
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "JVM 상세",
+      "type": "link",
+      "url": "/d/findus-jvm",
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "PostgreSQL",
+      "type": "link",
+      "url": "/d/findus-postgres",
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "Redis",
+      "type": "link",
+      "url": "/d/findus-redis",
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "요청·DB 트랜잭션",
+      "type": "link",
+      "url": "/d/findus-transactions",
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false
+    }
+  ]
+}
