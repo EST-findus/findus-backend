@@ -1,11 +1,12 @@
 # 백엔드 폴더 또는 상위 FindUs 폴더에서 실행할 때 로컬 .env를 읽습니다.
 # 두 파일이 모두 있으면 현재 작업 폴더의 .env가 우선합니다.
 # 실제 비밀번호는 Git에서 제외된 .env에만 작성하세요.
+# FINDUS_ENV_FILE로 읽을 파일을 바꿉니다. 예: FINDUS_ENV_FILE=.env.deploy
 spring:
   config:
     import:
-      - "optional:file:./findus-backend/.env[.properties]"
-      - "optional:file:./.env[.properties]"
+      - "optional:file:./findus-backend/${FINDUS_ENV_FILE:.env}[.properties]"
+      - "optional:file:./${FINDUS_ENV_FILE:.env}[.properties]"
   # AI 작업 저장 API가 받는 결과 사진(최대 10MB)과 연결 정보를 함께 받을 수 있게 합니다.
   servlet:
     multipart:
