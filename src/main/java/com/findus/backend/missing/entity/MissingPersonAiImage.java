@@ -41,7 +41,8 @@ public class MissingPersonAiImage extends BaseEntity {
         missingPerson=person;sourceImage=source;targetAge=age;
     }
 
-    private static String validateType(byte[] bytes) {
+    /** 스타일 결과도 같은 기준으로 확인하도록 패키지 안에서 함께 씁니다. */
+    static String validateType(byte[] bytes) {
         boolean jpeg=bytes.length>3 && bytes[0]==(byte)0xff && bytes[1]==(byte)0xd8;
         boolean png=bytes.length>8 && bytes[0]==(byte)0x89 && bytes[1]==0x50 && bytes[2]==0x4e && bytes[3]==0x47;
         if (!jpeg && !png) throw new IllegalArgumentException("JPEG 또는 PNG 결과 사진만 저장할 수 있습니다.");
