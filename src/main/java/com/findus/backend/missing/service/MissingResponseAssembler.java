@@ -25,8 +25,8 @@ public class MissingResponseAssembler {
             grouped.computeIfAbsent(image.missingPersonId(),key -> new ArrayList<>()).add(response);
             if (image.main()) mainUrls.put(image.missingPersonId(),response.url());
         }
-        // 목록에서 AI 사진이 있는 아동을 구분할 수 있도록 대표 AI 사진 여부만 한 번에 조회합니다.
-        var withAi=aiImages.findPersonIdsWithPublicMain(ids);
+        // 목록에서 AI 사진이 있는 아동을 구분할 수 있도록 AI 사진 여부만 한 번에 조회합니다. 대표가 없어도 첫 AI 사진을 보여줍니다.
+        var withAi=aiImages.findPersonIdsWithPublicAi(ids);
         var result=new HashMap<UUID,MissingPersonResponse>();
         people.forEach(p -> {
             var list=grouped.getOrDefault(p.getId(),List.of());

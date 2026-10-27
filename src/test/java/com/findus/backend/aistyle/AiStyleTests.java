@@ -94,8 +94,9 @@ class AiStyleTests {
                 +"VALUES (?,?,?,'010',?,TRUE,now(),now(),now())",id,sourceId,"가상아동"+sourceId,sex);
         return id;
     }
-    UUID aiImage(UUID owner,boolean main) {
-        UUID source=UUID.randomUUID(),id=UUID.randomUUID();byte[] bytes=png(1);
+    UUID aiImage(UUID owner,boolean main) { return aiImage(owner,main,png(1)); }
+    UUID aiImage(UUID owner,boolean main,byte[] bytes) {
+        UUID source=UUID.randomUUID(),id=UUID.randomUUID();
         jdbc.update("INSERT INTO findus.missing_person_images(id,missing_person_id,sort_order,source_url,content_type,content,byte_size,sha256,created_at,updated_at) "
                 +"VALUES (?,?,(SELECT count(*) FROM findus.missing_person_images WHERE missing_person_id=?),'http://test','image/png',?,?,?,now(),now())",
                 source,owner,owner,bytes,bytes.length,"0".repeat(64));
@@ -150,10 +151,12 @@ class AiStyleTests {
     }
 
     @Test void 아동_정보에_대표_AI사진_주소를_함께_준다() throws Exception {
-        UUID withAi=person("1","여자"),without=person("2","남자");
-        aiImage(withAi,true);aiImage(without,false);   // 대표가 아닌 AI 사진만 있으면 없는 것으로 봅니다.
+        UUID withAi=person("1","여자"),noMain=person("2","남자"),without=person("3","남자");
+        aiImage(withAi,true);aiImage(noMain,false);   // 대표가 지정되지 않아도 AI 사진이 있으면 보여줍니다.
         mvc.perform(get("/api/missing-persons/"+withAi)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.aiPhotoUrl").value("/api/missing-persons/"+withAi+"/ai-image/photo"));
+        mvc.perform(get("/api/missing-persons/"+noMain)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.aiPhotoUrl").value("/api/missing-persons/"+noMain+"/ai-image/photo"));
         mvc.perform(get("/api/missing-persons/"+without)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.aiPhotoUrl").doesNotExist());
     }
@@ -167,6 +170,49 @@ class AiStyleTests {
                     .andExpect(jsonPath("$.code").value("AI_IMAGE_NOT_FOUND"));
             mvc.perform(get("/api/missing-persons/"+id+"/ai-image/photo")).andExpect(status().isNotFound());
         }
+    }
+
+    @Test void 아동의_활성_AI사진을_대표부터_모두_보여주고_다른_아동_사진은_404다() throws Exception {
+        UUID girl=person("1","여자"),other=person("2","여자");
+        byte[] first=png(30),second=png(31);
+        UUID a=aiImage(girl,false,first),main=aiImage(girl,true),b=aiImage(girl,false,second),deleted=aiImage(girl,false);
+        jdbc.update("UPDATE findus.missing_person_ai_images SET deleted_at=now() WHERE id=?",deleted);
+        UUID foreign=aiImage(other,true);
+        String base="/api/missing-persons/"+girl+"/ai-image";
+
+        mvc.perform(get(base)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.images.length()").value(3))
+                .andExpect(jsonPath("$.images[0].id").value(main.toString())).andExpect(jsonPath("$.images[0].main").value(true))
+                .andExpect(jsonPath("$.images[0].url").value(base+"/photo"))
+                .andExpect(jsonPath("$.images[1].id").value(a.toString())).andExpect(jsonPath("$.images[1].main").value(false))
+                .andExpect(jsonPath("$.images[1].url").value(base+"/photos/"+a))
+                .andExpect(jsonPath("$.images[2].id").value(b.toString()));
+        mvc.perform(get(base+"/photos/"+a)).andExpect(status().isOk()).andExpect(content().contentType("image/png"))
+                .andExpect(header().string("X-Content-Type-Options","nosniff")).andExpect(content().bytes(first));
+        mvc.perform(get(base+"/photos/"+b)).andExpect(status().isOk()).andExpect(content().bytes(second));
+        for (UUID id:List.of(deleted,foreign,UUID.randomUUID()))
+            mvc.perform(get(base+"/photos/"+id)).andExpect(status().isNotFound());
+        jdbc.update("UPDATE findus.missing_persons SET source_available=FALSE WHERE id=?",girl);
+        mvc.perform(get(base+"/photos/"+a)).andExpect(status().isNotFound());
+    }
+
+    @Test void 대표_AI사진이_없어도_활성_AI사진을_모두_보여주고_먼저_만든_사진을_대표_자리에_쓴다() throws Exception {
+        UUID boy=person("1","남자");
+        byte[] first=png(40),second=png(41);
+        UUID a=aiImage(boy,false,first),b=aiImage(boy,false,second);
+        style(boy,a,"M","buzz",png(42));    // 스타일 조회는 is_main 기준이라 대표가 없으면 보이지 않습니다.
+        String base="/api/missing-persons/"+boy+"/ai-image";
+
+        mvc.perform(get(base)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(a.toString())).andExpect(jsonPath("$.url").value(base+"/photo"))
+                .andExpect(jsonPath("$.styles.length()").value(0))
+                .andExpect(jsonPath("$.images.length()").value(2))
+                .andExpect(jsonPath("$.images[0].id").value(a.toString())).andExpect(jsonPath("$.images[0].main").value(true))
+                .andExpect(jsonPath("$.images[0].url").value(base+"/photo"))
+                .andExpect(jsonPath("$.images[1].id").value(b.toString())).andExpect(jsonPath("$.images[1].main").value(false))
+                .andExpect(jsonPath("$.images[1].url").value(base+"/photos/"+b));
+        mvc.perform(get(base+"/photo")).andExpect(status().isOk()).andExpect(content().bytes(first));
+        mvc.perform(get(base+"/photos/"+b)).andExpect(status().isOk()).andExpect(content().bytes(second));
     }
     // endregion
 

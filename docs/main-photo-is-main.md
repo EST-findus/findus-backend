@@ -56,6 +56,8 @@
 
 - 응답의 대표 사진 URL은 `is_main = true`인 사진입니다.
 - 대표가 없으면 첫 번째 사진, 사진이 아예 없으면 경찰청 API의 사진 URL을 씁니다.
+- AI 사진 정보(`GET /api/missing-persons/{id}/ai-image`)의 `images`는 그 아동의 활성 AI 사진 전체입니다. 대표 AI 사진이 첫 항목이고 나머지는 만든 순서이며, 각 사진은 `/ai-image/photos/{aiImageId}`로 받습니다.
+- 대표 AI 사진(`is_main`)이 지정되지 않은 아동도 활성 AI 사진이 있으면 응답합니다. 이때는 가장 먼저 만든 사진이 대표 자리(`url`, `/ai-image/photo`, `images[0]`)에 오고, 스타일 사진은 보여주지 않습니다.
 
 ## 4. 대표 원본 사진 지정 화면 (`8555e6e`)
 

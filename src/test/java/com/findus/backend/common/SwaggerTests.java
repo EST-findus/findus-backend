@@ -63,7 +63,7 @@ class SwaggerTests {
                 || path.contains("/ai-image") || path.contains("/ai-styles")).toList());
         var schemas=(tools.jackson.databind.node.ObjectNode)doc.path("components").path("schemas");
         schemas.remove(schemas.properties().stream().map(java.util.Map.Entry::getKey).filter(name -> name.startsWith("News") || name.startsWith("Inquiry") || name.equals("JsonNode")
-                || name.startsWith("MissingAiImageResponse") || name.equals("Style") || name.startsWith("AiStyle")).toList());
+                || name.startsWith("MissingAiImageResponse") || name.equals("Style") || name.equals("Image") || name.startsWith("AiStyle")).toList());
         // 목록·상세 응답에 추가한 대표 AI 사진 주소도 기준 문서에는 없으므로 제외합니다.
         if (schemas.path("MissingPersonResponse").path("properties") instanceof tools.jackson.databind.node.ObjectNode person)
             person.remove("aiPhotoUrl");
