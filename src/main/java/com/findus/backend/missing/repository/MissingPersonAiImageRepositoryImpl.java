@@ -19,9 +19,13 @@ public class MissingPersonAiImageRepositoryImpl implements MissingPersonAiImageR
         return jpa.findAllByMissingPersonIdOrderByCreatedAtAscIdAsc(id);
     }
     @Override public Optional<MissingAiImageMetadata> findPublicMain(UUID personId) { return jpa.findPublicMain(personId); }
-    @Override public Optional<MissingImageContent> findPublicMainContent(UUID personId) { return jpa.findPublicMainContent(personId); }
-    @Override public Set<UUID> findPersonIdsWithPublicMain(List<UUID> personIds) {
-        return personIds.isEmpty() ? Set.of() : Set.copyOf(jpa.findPersonIdsWithPublicMain(personIds));
+    @Override public Optional<MissingImageContent> findPublicFirstContent(UUID personId) { return jpa.findPublicFirstContent(personId); }
+    @Override public List<MissingAiImageMetadata> findPublicAll(UUID personId) { return jpa.findPublicAll(personId); }
+    @Override public Optional<MissingImageContent> findPublicContent(UUID personId,UUID aiImageId) {
+        return jpa.findPublicContent(personId,aiImageId);
+    }
+    @Override public Set<UUID> findPersonIdsWithPublicAi(List<UUID> personIds) {
+        return personIds.isEmpty() ? Set.of() : Set.copyOf(jpa.findPersonIdsWithPublicAi(personIds));
     }
     @Override public List<MissingAiImageMetadata> findPublicMains() { return jpa.findPublicMains(); }
     @Override public Optional<MissingPersonAiImage> findActive(UUID id) { return jpa.findActive(id); }

@@ -17,4 +17,10 @@ interface MissingPersonJpaRepository extends JpaRepository<MissingPerson,UUID> {
 
     Page<MissingPerson> findAllBySourceAvailableTrueAndDeletedAtIsNullAndOccurrenceDateLessThanEqual(String cutoff,Pageable pageable);
     Optional<MissingPerson> findByIdAndSourceAvailableTrueAndDeletedAtIsNull(UUID id);
+    // 대표 사진 검토 화면: 활성 원본이 minImages장 이상인 공개 아동만 조회합니다.
+    @org.springframework.data.jpa.repository.Query(value="select p from MissingPerson p where p.sourceAvailable=true and p.deletedAt is null and p.category='010' "
+            +"and (select count(i) from MissingPersonImage i where i.missingPerson=p and i.deletedAt is null)>=:minImages",
+            countQuery="select count(p) from MissingPerson p where p.sourceAvailable=true and p.deletedAt is null and p.category='010' "
+            +"and (select count(i) from MissingPersonImage i where i.missingPerson=p and i.deletedAt is null)>=:minImages")
+    Page<MissingPerson> findForMainReview(@org.springframework.data.repository.query.Param("minImages") long minImages,Pageable pageable);
 }

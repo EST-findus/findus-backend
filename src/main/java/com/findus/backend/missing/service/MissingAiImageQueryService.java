@@ -10,4 +10,6 @@ public interface MissingAiImageQueryService {
     Optional<MissingAiImageResponse> mainAiImage(UUID personId);
     /** style이 비어 있으면 대표 AI 사진, 있으면 그 스타일 사진입니다. */
     Optional<MissingImageContent> photo(UUID personId,String style);
+    /** 이 아동의 활성 AI 사진 한 장. 다른 아동의 사진이거나 공개 중이 아니면 비어 있습니다. */
+    Optional<MissingImageContent> photoById(UUID personId,UUID aiImageId);
 }
