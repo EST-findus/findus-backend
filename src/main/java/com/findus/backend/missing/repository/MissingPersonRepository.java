@@ -15,4 +15,5 @@ public interface MissingPersonRepository {
     boolean tryLock();
     Page<MissingPerson> findAvailable(String occurredOnOrBefore,Pageable page);
     Optional<MissingPerson> findAvailable(UUID id);
+    Page<MissingPerson> findForMainReview(long minImages,Pageable page);
 }

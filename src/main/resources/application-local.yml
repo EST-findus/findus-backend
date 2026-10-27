@@ -29,6 +29,9 @@ app:
   # Python AI 작업 화면의 저장 API. 이 PC의 서버 간 요청만 받으며 명시적으로 켰을 때만 등록합니다.
   aiworkbench:
     enabled: ${AI_WORKBENCH_ENABLED:false}
+  # 대표 원본 사진 수작업 지정 화면(/test/main-photo). 이 PC의 localhost 접속만 받으며 명시적으로 켰을 때만 등록합니다.
+  main-photo-tool:
+    enabled: ${MAIN_PHOTO_TOOL_ENABLED:false}
   auth:
     cookie-secure: ${AUTH_COOKIE_SECURE:false}
   monitoring:

@@ -10,7 +10,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.findus.backend.missing.dto.MissingImageContent;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -39,8 +41,19 @@ public class MissingAiImageController {
     @Operation(summary="대표 AI 사진 / 스타일 사진",description="style이 없으면 대표 AI 사진, 있으면 미리 만들어 둔 그 스타일 사진입니다. 저장되지 않은 스타일은 404입니다.")
     public ResponseEntity<byte[]> photo(@PathVariable UUID personId,
             @Parameter(description="스타일 key (정보 API의 styles[].key)",example="bob") @RequestParam(required=false) String style) {
+        return image(service.photo(personId,style));
+    }
+
+    @GetMapping(value="/photos/{aiImageId}",produces={"image/png","image/jpeg"})
+    @Operation(summary="AI 사진 한 장",description="정보 API의 images[].url입니다. 이 아동의 활성 AI 사진이 아니면 404입니다.")
+    public ResponseEntity<byte[]> photoById(@PathVariable UUID personId,
+            @Parameter(description="AI 사진 id (정보 API의 images[].id)") @PathVariable UUID aiImageId) {
+        return image(service.photoById(personId,aiImageId));
+    }
+
+    private static ResponseEntity<byte[]> image(Optional<MissingImageContent> content) {
         // 버튼 전환이 바로 되도록 브라우저에만 잠시 보관합니다. 대표가 바뀌어도 최대 10분 안에 새 사진을 받습니다.
-        return service.photo(personId,style)
+        return content
                 .map(image -> ResponseEntity.ok().contentType(MediaType.parseMediaType(image.contentType()))
                         .cacheControl(CacheControl.maxAge(Duration.ofMinutes(10)).cachePrivate())
                         .header("X-Content-Type-Options","nosniff").contentLength(image.content().length).body(image.content()))
