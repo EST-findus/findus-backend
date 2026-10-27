@@ -6,7 +6,7 @@
 <meta name="referrer" content="no-referrer">
 <title>대표 사진 지정</title>
 <style>
-body{margin:0;padding:24px;font-family:system-ui,sans-serif;background:#f4f6f8;color:#172b3a}header,main,nav{max-width:1200px;margin:0 auto}h1{font-size:24px}p{line-height:1.6}button,label{font:inherit}button{padding:9px 12px;border:1px solid #aebec8;background:white;border-radius:4px;cursor:pointer}button:disabled{opacity:.5;cursor:default}button[aria-current=page]{background:#172b3a;color:white}.actions,nav{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}#db{display:inline-block;padding:4px 10px;border-radius:4px;background:#fff3cd;border:1px solid #e0c36a;font-weight:600;overflow-wrap:anywhere}#status{white-space:pre-wrap;overflow-wrap:anywhere}#status.error{color:#b42318}#people{display:flex;flex-direction:column;gap:16px;margin-bottom:24px}article{padding:16px 20px;background:white;border:2px solid #d7dfe5;border-radius:8px;min-width:0}article.active{border-color:#2563eb}article.reviewed{background:#eef8f0}.head{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}h2{font-size:18px;margin:0}.meta{font-size:14px;color:#52616c}.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin:12px 0}.photo{position:relative;padding:0;border:3px solid transparent;background:#f3f3f3;border-radius:6px;overflow:hidden}.photo img{display:block;width:100%;height:200px;object-fit:contain}.photo.main{border-color:#16a34a}.photo .badge{position:absolute;top:6px;left:6px;padding:2px 8px;border-radius:4px;background:rgba(23,43,58,.8);color:white;font-size:13px}.photo.main .badge{background:#16a34a}.photo:disabled{opacity:1;cursor:wait}.review{display:flex;gap:8px;align-items:center;cursor:pointer}.empty{padding:20px;background:white}.notice{font-size:14px;color:#52616c}[hidden]{display:none!important}
+body{margin:0;padding:24px;font-family:system-ui,sans-serif;background:#f4f6f8;color:#172b3a}header,main,nav{max-width:1200px;margin:0 auto}h1{font-size:24px}p{line-height:1.6}button,label{font:inherit}button{padding:9px 12px;border:1px solid #aebec8;background:white;border-radius:4px;cursor:pointer}button:disabled{opacity:.5;cursor:default}button[aria-current=page]{background:#172b3a;color:white}.actions,nav{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}#db{display:inline-block;padding:4px 10px;border-radius:4px;background:#fff3cd;border:1px solid #e0c36a;font-weight:600;overflow-wrap:anywhere}#status{white-space:pre-wrap;overflow-wrap:anywhere}#status.error{color:#b42318}#people{display:flex;flex-direction:column;gap:16px;margin-bottom:24px}article{padding:16px 20px;background:white;border:2px solid #d7dfe5;border-radius:8px;min-width:0}article.active{border-color:#2563eb}article.reviewed{background:#eef8f0}.head{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}h2{font-size:18px;margin:0}.meta{font-size:14px;color:#52616c}.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin:12px 0}.photo{position:relative;padding:0;border:3px solid transparent;background:#f3f3f3;border-radius:6px;overflow:hidden}.photo img{display:block;width:100%;height:200px;object-fit:contain}.photo.main{border-color:#16a34a}.photo .badge{position:absolute;top:6px;left:6px;padding:2px 8px;border-radius:4px;background:rgba(23,43,58,.8);color:white;font-size:13px}.photo.main .badge{background:#16a34a}.photo:disabled{opacity:1;cursor:wait}.review{display:flex;gap:8px;align-items:center;cursor:pointer}.ids{margin-top:4px;overflow-wrap:anywhere}.shot{display:flex;flex-direction:column;gap:4px;min-width:0}.shot .photo{width:100%}.photo-id{font-size:11px;color:#52616c;overflow-wrap:anywhere;user-select:all}.ids code{user-select:all}.empty{padding:20px;background:white}.notice{font-size:14px;color:#52616c}[hidden]{display:none!important}
 @media (max-width:600px){body{padding:16px}.photos{grid-template-columns:repeat(2,minmax(0,1fr))}.photo img{height:160px}}
 </style>
 </head>
@@ -85,7 +85,7 @@ function updateProgress() {
 async function select(person, image, button) {
     if (busy || image.main) return;
     busy = true;
-    const buttons = [...button.parentElement.children];
+    const buttons = [...button.closest('.photos').querySelectorAll('.photo')];
     buttons.forEach(b => { b.disabled = true; });
     showStatus(`${person.name}: 대표 사진 저장 중…`);
     try {
@@ -111,7 +111,14 @@ function card(person, index) {
     head.append(element('h2', person.name),
         element('span', [person.sex, person.age != null ? `당시 ${person.age}세` : null, person.ageNow != null ? `현재 ${person.ageNow}세` : null,
             person.occurrenceDate ? `발생 ${person.occurrenceDate}` : null, `경찰청 ${person.sourceId}`].filter(Boolean).join(' · '), 'meta'));
-    article.append(head);
+    // 배포 서버의 GET /api/missing-persons/{id} 응답과 비교할 수 있도록 DB UUID와 공개 API 링크를 보여줍니다.
+    const ids = element('div', null, 'meta ids');
+    const api = element('a', '공개 API 응답');
+    api.href = `/api/missing-persons/${person.id}`;
+    api.target = '_blank';
+    api.rel = 'noopener';
+    ids.append(element('span', 'ID '), element('code', person.id), document.createTextNode(' · '), api);
+    article.append(head, ids);
     const photos = element('div', null, 'photos');
     person.images.forEach((image, number) => {
         const button = element('button', null, 'photo' + (image.main ? ' main' : ''));
@@ -128,7 +135,10 @@ function card(person, index) {
         } else button.append(element('p', '사진 주소 확인 불가'));
         button.append(element('span', image.main ? `${number + 1} · 대표` : String(number + 1), 'badge'));
         button.addEventListener('click', () => select(person, image, button));
-        photos.append(button);
+        // 공개 API의 photoUrl·images[].id와 비교할 수 있도록 사진 UUID를 함께 보여줍니다.
+        const figure = element('div', null, 'shot');
+        figure.append(button, element('code', image.id, 'photo-id'));
+        photos.append(figure);
     });
     article.append(person.images.length ? photos : element('p', '저장된 사진 없음'));
     const label = element('label', null, 'review');
